@@ -1,4 +1,4 @@
-"""View-robust joint-angle feature extraction."""
+"""面向视角变化的关节角特征提取。"""
 
 from __future__ import annotations
 
@@ -27,6 +27,26 @@ JOINT_NAMES = [
     "right_eye",
 ]
 
+JOINT_DISPLAY_NAMES = {
+    "pelvis": "骨盆",
+    "left_hip": "左髋",
+    "right_hip": "右髋",
+    "left_knee": "左膝",
+    "right_knee": "右膝",
+    "left_ankle": "左踝",
+    "right_ankle": "右踝",
+    "left_shoulder": "左肩",
+    "right_shoulder": "右肩",
+    "left_elbow": "左肘",
+    "right_elbow": "右肘",
+    "left_wrist": "左腕",
+    "right_wrist": "右腕",
+    "head": "头部",
+    "neck": "颈部",
+    "left_eye": "左眼",
+    "right_eye": "右眼",
+}
+
 JOINT_TRIPLETS = [
     ("left_hip", "left_knee", "left_ankle"),
     ("right_hip", "right_knee", "right_ankle"),
@@ -45,7 +65,7 @@ JOINT_TRIPLETS = [
 
 @dataclass
 class FeatureExtractor:
-    """Extract per-frame joint angles from a 17-joint 3D skeleton."""
+    """从 17 关节三维骨架中提取逐帧关节角。"""
 
     joint_names: list[str] | None = None
     joint_triplets: list[tuple[str, str, str]] | None = None
@@ -58,7 +78,7 @@ class FeatureExtractor:
     def compute_angles(self, coords_3d: np.ndarray) -> np.ndarray:
         coords = np.asarray(coords_3d, dtype=float)
         if coords.ndim != 3 or coords.shape[1:] != (len(self.joint_names), 3):
-            raise ValueError(f"coords_3d must have shape (T, {len(self.joint_names)}, 3)")
+            raise ValueError(f"coords_3d 的形状必须为 (T, {len(self.joint_names)}, 3)")
 
         angles = np.empty((coords.shape[0], len(self.joint_triplets)), dtype=float)
         for feature_idx, (parent, joint, child) in enumerate(self.joint_triplets):

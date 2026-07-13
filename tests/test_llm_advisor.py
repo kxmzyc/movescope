@@ -25,7 +25,7 @@ def test_fallback_no_key(monkeypatch):
     advice = LLMAdvisor().generate_advice(make_diagnosis())
 
     assert advice.strip()
-    assert "left knee" in advice
+    assert "左膝" in advice
 
 
 def test_output_not_medical(monkeypatch):
@@ -48,4 +48,4 @@ def test_synthetic_path_never_calls_remote_provider(monkeypatch):
 
     advice = advisor.generate_advice(make_diagnosis(), allow_remote=False)
 
-    assert "left knee" in advice
+    assert "左膝" in advice

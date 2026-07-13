@@ -1,15 +1,20 @@
-"""MediaPipe pose hello-world pipeline for MoveScope."""
+"""MoveScope 的 MediaPipe 姿态提取入门示例。"""
 
 from __future__ import annotations
 
 import argparse
 import math
+import sys
 import time
 from pathlib import Path
 
 import cv2
 import mediapipe as mp
 import numpy as np
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 LEFT_HIP = 23
@@ -19,11 +24,11 @@ LEFT_ANKLE = 27
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--video", help="Input video path. If omitted, camera 0 is used.")
+    parser.add_argument("--video", help="输入视频路径；不传时使用 0 号摄像头。")
     parser.add_argument(
         "--output",
         default="data/test/hello_world_output.mp4",
-        help="Output video path.",
+        help="输出视频路径。",
     )
     return parser.parse_args()
 
@@ -58,7 +63,7 @@ def main() -> None:
     source = args.video if args.video else 0
     capture = cv2.VideoCapture(source)
     if not capture.isOpened():
-        raise SystemExit(f"Could not open video source: {source}")
+        raise SystemExit(f"无法打开视频源：{source}")
 
     fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
     width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -87,7 +92,7 @@ def main() -> None:
                 if angle is not None:
                     angles.append(angle)
 
-            text = "left knee: --" if angle is None else f"left knee: {angle:.1f} deg"
+            text = "--" if angle is None else f"{angle:.1f}"
             cv2.putText(frame, text, (24, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
             writer.write(frame)
             frame_count += 1
@@ -98,14 +103,13 @@ def main() -> None:
     elapsed = time.perf_counter() - start
     if angles:
         print(
-            "Processed "
-            f"{frame_count} frames in {elapsed:.2f}s. "
-            f"left_knee_avg={np.mean(angles):.1f}, "
-            f"min={np.min(angles):.1f}, max={np.max(angles):.1f}. "
-            f"output={args.output}"
+            f"已在 {elapsed:.2f} 秒内处理 {frame_count} 帧。"
+            f"左膝平均角度={np.mean(angles):.1f}，"
+            f"最小值={np.min(angles):.1f}，最大值={np.max(angles):.1f}。"
+            f"输出：{args.output}"
         )
     else:
-        print(f"Processed {frame_count} frames in {elapsed:.2f}s. No reliable left-knee angle detected.")
+        print(f"已在 {elapsed:.2f} 秒内处理 {frame_count} 帧，未检测到可靠的左膝角度。")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Natural-language coaching advice from structured assessment results."""
+"""根据结构化评估结果生成自然语言训练建议。"""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import json
 import os
 from dataclasses import dataclass
 from typing import Any
+
+from movescope.features import JOINT_DISPLAY_NAMES
 
 
 DISCLAIMER = "本分析仅供动作训练参考，不能替代专业教练或医疗意见。"
@@ -23,7 +25,7 @@ FALLBACK_ADVICE = {
 
 @dataclass
 class LLMAdvisor:
-    """Generate concise coaching advice with an API-backed or local fallback path."""
+    """通过远程模型或本地规则生成简洁的动作建议。"""
 
     model: str = "gpt-4o"
 
@@ -86,7 +88,7 @@ class LLMAdvisor:
 
     @staticmethod
     def _advice_for_joint(joint_name: str) -> str:
-        joint = joint_name.lower()
+        joint = joint_name.split(":", 1)[0].lower()
         for key, advice in FALLBACK_ADVICE.items():
             if key in joint:
                 return advice
@@ -94,4 +96,5 @@ class LLMAdvisor:
 
     @staticmethod
     def _display_joint(joint_name: str) -> str:
-        return joint_name.split(":", 1)[0].replace("_", " ")
+        key = joint_name.split(":", 1)[0]
+        return JOINT_DISPLAY_NAMES.get(key, key)

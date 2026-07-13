@@ -1,4 +1,4 @@
-"""Deterministic synthetic assessment for an out-of-box MoveScope demo."""
+"""用于开箱验证 MoveScope 的确定性合成评估。"""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class _PassthroughFeatureExtractor(FeatureExtractor):
 
 
 def generate_synthetic_demo() -> dict:
-    """Run the real template/alignment/scoring path on deterministic angle data."""
+    """使用确定性角度数据运行真实模板、对齐和评分链路。"""
     frame_count = 72
     progress = np.linspace(0.0, 1.0, frame_count)
     squat_depth = np.sin(np.pi * progress) ** 2
@@ -47,8 +47,8 @@ def generate_synthetic_demo() -> dict:
     result["llm_advice"] = LLMAdvisor().generate_advice(result, allow_remote=False)
     result["metadata"] = {
         "source": "synthetic",
-        "label": "Deterministic squat angle demo",
-        "disclaimer": "For UI and API verification only; this is not a real-video benchmark result.",
+        "label": "确定性深蹲关节角演示",
+        "disclaimer": "仅用于界面与 API 链路验证，不代表真实视频评测结果。",
         "frames": frame_count,
     }
     return result

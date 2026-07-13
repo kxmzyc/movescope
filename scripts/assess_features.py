@@ -1,4 +1,4 @@
-"""Assess a precomputed feature sequence against an action template."""
+"""使用动作模板评估预计算特征序列。"""
 
 from __future__ import annotations
 
@@ -18,6 +18,10 @@ from movescope.assessment import AssessmentEngine, generate_text_summary, save_d
 from movescope.features import FeatureExtractor
 from movescope.template import ActionTemplate
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 
 class PassthroughFeatureExtractor(FeatureExtractor):
     def extract(self, coords_3d, normalize=True):
@@ -26,10 +30,10 @@ class PassthroughFeatureExtractor(FeatureExtractor):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--action", default="squat")
-    parser.add_argument("--features", required=True, help="Feature .npy or .npz file with shape (T, D).")
-    parser.add_argument("--template", help="Template .npz path. Defaults to data/templates/<action>.npz")
-    parser.add_argument("--output", help="Optional diagnosis JSON output path.")
+    parser.add_argument("--action", default="squat", help="动作标识，默认为 squat")
+    parser.add_argument("--features", required=True, help="形状为 (T, D) 的 .npy 或 .npz 特征文件。")
+    parser.add_argument("--template", help="模板 .npz 路径，默认读取 data/templates/<action>.npz。")
+    parser.add_argument("--output", help="可选的诊断 JSON 输出路径。")
     return parser.parse_args()
 
 

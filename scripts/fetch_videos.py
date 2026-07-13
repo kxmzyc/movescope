@@ -1,4 +1,4 @@
-"""Search or download authorized exercise videos via yt-dlp."""
+"""通过 yt-dlp 搜索或下载已获授权的训练视频。"""
 
 from __future__ import annotations
 
@@ -30,14 +30,14 @@ VIDEO_EXTENSIONS = (".mp4", ".webm", ".mkv", ".mov")
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__,
-        epilog="Use only videos you own or are authorized to download and process.",
+        epilog="仅可下载和处理你拥有或已获得授权的视频。",
     )
-    parser.add_argument("--action", default="squat", help="Action name, for example: squat")
+    parser.add_argument("--action", default="squat", help="动作标识，例如 squat")
     parser.add_argument("--mode", choices=["expert", "test"], required=True)
-    parser.add_argument("--n", type=int, default=3, help="Number of results per search term")
+    parser.add_argument("--n", type=int, default=3, help="每个搜索词返回的结果数量")
     parser.add_argument("--lang", choices=["zh", "en", "both"], default="zh")
-    parser.add_argument("--output-dir", help="Override download directory. Defaults to data/{mode}/{action}.")
-    parser.add_argument("--dry-run", action="store_true", help="Only print candidate titles and URLs")
+    parser.add_argument("--output-dir", help="指定下载目录，默认使用 data/{mode}/{action}。")
+    parser.add_argument("--dry-run", action="store_true", help="只显示候选标题和 URL，不下载视频")
     return parser.parse_args()
 
 
@@ -47,7 +47,7 @@ def selected_terms(action: str, mode: str, lang: str) -> list[str]:
     for language in languages:
         terms.extend(SEARCH_TERMS.get((action, mode, language), []))
     if not terms:
-        raise SystemExit(f"No search terms configured for action={action!r}, mode={mode!r}, lang={lang!r}")
+        raise SystemExit(f"未配置搜索词：action={action!r}，mode={mode!r}，lang={lang!r}")
     return terms
 
 
@@ -65,7 +65,7 @@ def dry_run(term: str, n: int) -> tuple[int, int]:
     query = f"ytsearch{n}:{term}"
     result = run_yt_dlp([query, "--print", "%(title)s\t%(webpage_url)s\t%(duration_string)s"])
     if result.returncode != 0:
-        print(f"[failed] {term}: {result.stderr.strip()}")
+        print(f"[失败] {term}：{result.stderr.strip()}")
         return 0, 1
 
     count = 0
@@ -103,14 +103,14 @@ def download(term: str, action: str, mode: str, n: int, output_dir: Path | None 
     after = {path.name for ext in VIDEO_EXTENSIONS for path in output_dir.glob(f"*{ext}")}
     downloaded = len(after - before)
     failed = 0 if result.returncode == 0 else 1
-    print(f"[download] {term}: downloaded={downloaded}, failed={failed}")
+    print(f"[下载] {term}：成功 {downloaded} 个，失败 {failed} 个")
     return downloaded, failed
 
 
 def main() -> None:
     args = parse_args()
     if not yt_dlp_available():
-        raise SystemExit("yt-dlp is not installed in this Python environment. Install it with: pip install yt-dlp")
+        raise SystemExit("当前 Python 环境未安装 yt-dlp，请运行：pip install yt-dlp")
 
     success = 0
     failed = 0
@@ -128,7 +128,7 @@ def main() -> None:
         success += ok
         failed += bad
 
-    print(f"Done. success={success}, failed={failed}")
+    print(f"处理完成：成功 {success} 个，失败 {failed} 个")
 
 
 def yt_dlp_available() -> bool:

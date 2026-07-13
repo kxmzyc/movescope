@@ -79,5 +79,5 @@ def test_segment_count_mismatch_falls_back_to_complete_alignment():
 def test_invalid_weights_are_rejected(weights):
     seq = np.arange(8, dtype=float).reshape(4, 2)
 
-    with pytest.raises(ValueError, match="weights"):
+    with pytest.raises(ValueError, match="权重"):
         WeightedSegmentedDTWAligner().align(seq, seq, weights=weights)

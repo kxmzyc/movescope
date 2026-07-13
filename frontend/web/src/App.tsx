@@ -71,6 +71,26 @@ type Health = {
 const API_BASE = import.meta.env.VITE_MOVESCOPE_API ?? 'http://127.0.0.1:8000'
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024
 const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.webm', '.mkv']
+const ACTION_LABELS: Record<string, string> = { squat: '深蹲' }
+const JOINT_LABELS: Record<string, string> = {
+  pelvis: '骨盆',
+  left_hip: '左髋',
+  right_hip: '右髋',
+  left_knee: '左膝',
+  right_knee: '右膝',
+  left_ankle: '左踝',
+  right_ankle: '右踝',
+  left_shoulder: '左肩',
+  right_shoulder: '右肩',
+  left_elbow: '左肘',
+  right_elbow: '右肘',
+  left_wrist: '左腕',
+  right_wrist: '右腕',
+  head: '头部',
+  neck: '颈部',
+  left_eye: '左眼',
+  right_eye: '右眼',
+}
 
 function App() {
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -119,7 +139,7 @@ function App() {
           : current,
       )
     } catch (err) {
-      setError(readError(err, 'API is not reachable. Start FastAPI on port 8000.'))
+      setError(readError(err, '无法连接 API，请确认 FastAPI 已在 8000 端口启动。'))
       setHealth(null)
       setAvailableActions([])
     } finally {
@@ -133,11 +153,11 @@ function App() {
 
   function selectFile(nextFile: File | null) {
     if (nextFile && !isSupportedVideo(nextFile)) {
-      setError('Use an MP4, MOV, AVI, WEBM, or MKV video file.')
+      setError('请选择 MP4、MOV、AVI、WEBM 或 MKV 格式的视频。')
       return
     }
     if (nextFile && nextFile.size > MAX_VIDEO_BYTES) {
-      setError('Video exceeds the 100 MB upload limit.')
+      setError('视频超过 100 MB 上传上限。')
       return
     }
     setFile(nextFile)
@@ -149,7 +169,7 @@ function App() {
 
   async function submitAssessment() {
     if (!file) {
-      setError('Select a video before running assessment.')
+      setError('请先选择视频，再开始评估。')
       return
     }
 
@@ -166,7 +186,7 @@ function App() {
       })
       setDiagnosis(response.data)
     } catch (err) {
-      setError(readError(err, 'Assessment failed.'))
+      setError(readError(err, '评估失败，请检查视频和动作模板。'))
     } finally {
       setStatus('idle')
     }
@@ -183,7 +203,7 @@ function App() {
       const response = await axios.get<Diagnosis>(`${API_BASE}/demo`, { timeout: 15_000 })
       setDiagnosis(response.data)
     } catch (err) {
-      setError(readError(err, 'Synthetic demo failed. Check the API connection.'))
+      setError(readError(err, '合成演示运行失败，请检查 API 连接。'))
     } finally {
       setStatus('idle')
     }
@@ -207,11 +227,11 @@ function App() {
       <header className="topbar">
         <div>
           <p className="eyebrow">MoveScope</p>
-          <h1>Monocular squat assessment console</h1>
+          <h1>单目深蹲动作评估工作台</h1>
         </div>
         <button className="statusButton" type="button" onClick={checkApi} disabled={busy}>
           {status === 'checking' ? <Loader2 className="spin" /> : health ? <CheckCircle2 /> : <RefreshCw />}
-          {health ? `API ${health.version} ready` : 'Check API'}
+          {health ? `API v${health.version} 已连接` : '检查 API'}
         </button>
       </header>
 
@@ -219,7 +239,7 @@ function App() {
         <aside className="panel controls">
           <div className="panelTitle">
             <Upload />
-            <span>Input</span>
+            <span>评估输入</span>
           </div>
 
           <button
@@ -233,7 +253,7 @@ function App() {
             }}
           >
             <FileVideo />
-            <strong>{file ? file.name : 'Choose or drop a video'}</strong>
+            <strong>{file ? file.name : '选择或拖入视频'}</strong>
             <span>{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'MP4, MOV, AVI, WEBM'}</span>
           </button>
 
@@ -246,11 +266,11 @@ function App() {
           />
 
           <label className="field">
-            <span>Action</span>
+            <span>动作类型</span>
             <select value={action} onChange={(event) => setAction(event.target.value)}>
               {(availableActions.length ? availableActions : ['squat']).map((name) => (
                 <option key={name} value={name}>
-                  {name}
+                  {actionLabel(name)}
                 </option>
               ))}
             </select>
@@ -259,30 +279,30 @@ function App() {
           {!availableActions.length && health && (
             <div className="templateNotice">
               <AlertCircle />
-              <span>No local template found. Build one for video assessment, or run the synthetic demo.</span>
+              <span>未找到本地动作模板。请先构建模板后评估视频，或直接运行合成演示。</span>
             </div>
           )}
 
           <button className="primary" type="button" disabled={busy || !file} onClick={submitAssessment}>
             {status === 'uploading' ? <Loader2 className="spin" /> : <Activity />}
-            Run assessment
+            {status === 'uploading' ? '正在评估...' : '开始评估'}
           </button>
 
           <button className="secondary" type="button" disabled={busy || !health} onClick={runDemo}>
             {status === 'demo' ? <Loader2 className="spin" /> : <FlaskConical />}
-            Run synthetic demo
+            {status === 'demo' ? '正在生成...' : '运行合成演示'}
           </button>
 
           <div className="hint">
             <Server />
-            <span>{health ? `${API_BASE} · connected` : API_BASE}</span>
+            <span>{health ? `${API_BASE} · 已连接` : API_BASE}</span>
           </div>
         </aside>
 
         <section className="panel videoPanel">
           <div className="panelTitle">
             <FileVideo />
-            <span>Video Review</span>
+            <span>视频预览</span>
           </div>
           <div className="videoFrame">
             {previewUrl ? (
@@ -290,13 +310,13 @@ function App() {
             ) : diagnosis?.metadata?.source === 'synthetic' ? (
               <div className="emptyVideo demoVisual">
                 <FlaskConical />
-                <strong>Synthetic angle sequence</strong>
-                <span>Deterministic 72-frame squat diagnostic</span>
+                <strong>合成角度序列</strong>
+                <span>固定 72 帧深蹲诊断</span>
               </div>
             ) : (
               <div className="emptyVideo">
                 <FileVideo />
-                <span>No video selected</span>
+                <span>尚未选择视频</span>
               </div>
             )}
           </div>
@@ -311,7 +331,7 @@ function App() {
         <aside className="panel results">
           <div className="scoreHeader">
             <div>
-              <p className="eyebrow">Score</p>
+              <p className="eyebrow">总分</p>
               <strong>{diagnosis ? diagnosis.total_score.toFixed(1) : '--'}</strong>
               <span className="scoreUnit">/ 100</span>
             </div>
@@ -323,11 +343,11 @@ function App() {
           {diagnosis && (
             <div className="resultMeta">
               <span className={diagnosis.metadata ? 'sourceBadge synthetic' : 'sourceBadge'}>
-                {diagnosis.metadata ? 'Synthetic verification' : 'Uploaded video'}
+                {diagnosis.metadata ? '合成验证' : '上传视频'}
               </span>
-              <button className="iconCommand" type="button" onClick={downloadReport} title="Download JSON report">
+              <button className="iconCommand" type="button" onClick={downloadReport} title="下载 JSON 报告">
                 <Download />
-                Export JSON
+                导出 JSON
               </button>
             </div>
           )}
@@ -339,17 +359,21 @@ function App() {
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#d7dbe2" />
                   <XAxis type="number" unit="°" tick={{ fontSize: 11 }} stroke="#68707d" />
                   <YAxis dataKey="name" type="category" width={86} tick={{ fontSize: 11 }} stroke="#68707d" />
-                  <Tooltip cursor={{ fill: '#eef2f6' }} />
+                  <Tooltip
+                    cursor={{ fill: '#eef2f6' }}
+                    formatter={(value) => [`${Number(value).toFixed(2)}°`, '平均偏差']}
+                    labelFormatter={(label) => `关节：${label}`}
+                  />
                   <Bar dataKey="meanDev" fill="#c14835" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="emptyChart">Joint deviations appear here after assessment.</div>
+              <div className="emptyChart">完成评估后将在这里显示各关节偏差。</div>
             )}
           </div>
 
           <section className="summary">
-            <h2>Findings</h2>
+            <h2>主要问题</h2>
             {topAnomalies.length ? (
               <ul>
                 {topAnomalies.slice(0, 4).map((item) => (
@@ -357,21 +381,21 @@ function App() {
                     <span>
                       {jointLabel(item.joint_name)}
                       <small>
-                        {item.peak_time_sec.toFixed(2)} s peak · {(item.anomaly_ratio * 100).toFixed(0)}% anomalous
+                        {item.peak_time_sec.toFixed(2)} 秒峰值 · {(item.anomaly_ratio * 100).toFixed(0)}% 异常
                       </small>
                     </span>
-                    <strong>{item.mean_deviation_deg.toFixed(1)} deg</strong>
+                    <strong>{item.mean_deviation_deg.toFixed(1)}°</strong>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p>No assessment result yet.</p>
+              <p>暂无评估结果。</p>
             )}
           </section>
 
           <section className="advice">
-            <h2>Advice</h2>
-            <p>{diagnosis?.llm_advice ?? 'Correction advice will appear after the backend returns a diagnosis.'}</p>
+            <h2>训练建议</h2>
+            <p>{diagnosis?.llm_advice ?? '后端返回诊断结果后，将在这里显示动作纠正建议。'}</p>
             {diagnosis?.metadata && <small className="disclaimer">{diagnosis.metadata.disclaimer}</small>}
           </section>
         </aside>
@@ -381,7 +405,12 @@ function App() {
 }
 
 function jointLabel(name: string) {
-  return name.split(':', 1)[0].replaceAll('_', ' ')
+  const key = name.split(':', 1)[0]
+  return JOINT_LABELS[key] ?? key
+}
+
+function actionLabel(name: string) {
+  return ACTION_LABELS[name] ?? name
 }
 
 function isSupportedVideo(file: File) {
@@ -393,7 +422,6 @@ function readError(err: unknown, fallback: string) {
   if (axios.isAxiosError(err)) {
     const detail = err.response?.data?.detail
     if (typeof detail === 'string') return detail
-    if (err.message) return err.message
   }
   return fallback
 }
