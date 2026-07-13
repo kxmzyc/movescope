@@ -1,4 +1,4 @@
-"""Action quality assessment and structured diagnosis."""
+"""动作质量评估与结构化诊断。"""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from movescope.features import FeatureExtractor, JOINT_TRIPLETS
+from movescope.features import FeatureExtractor, JOINT_DISPLAY_NAMES, JOINT_TRIPLETS
 
 
 def clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
@@ -27,17 +27,17 @@ class AssessmentEngine:
         reference = np.asarray(self.template.representative_seq, dtype=float)
         tolerance = np.asarray(self.template.tolerance, dtype=float)
         if test_features.ndim != 2 or reference.ndim != 2 or len(test_features) == 0 or len(reference) == 0:
-            raise ValueError("test and reference features must be non-empty 2D arrays")
+            raise ValueError("测试特征与参考特征必须是非空二维数组")
         if test_features.shape[1] != reference.shape[1]:
-            raise ValueError("test and reference feature dimensions must match")
+            raise ValueError("测试特征与参考特征的维度必须一致")
         if tolerance.shape != (test_features.shape[1],):
-            raise ValueError("template tolerance must match the feature dimension")
+            raise ValueError("模板容差维度必须与特征维度一致")
         if not np.isfinite(test_features).all() or not np.isfinite(reference).all():
-            raise ValueError("test and reference features must contain only finite values")
+            raise ValueError("测试特征与参考特征只能包含有限值")
         if not np.isfinite(tolerance).all() or np.any(tolerance <= 0):
-            raise ValueError("template tolerance must contain positive finite values")
+            raise ValueError("模板容差必须是正有限值")
         if not np.isfinite(self.fps) or self.fps <= 0:
-            raise ValueError("fps must be a positive finite value")
+            raise ValueError("fps 必须是正有限值")
 
         weights = None
         if hasattr(self.aligner, "compute_joint_weights"):
@@ -152,7 +152,8 @@ def generate_text_summary(result: dict, top_k: int = 3) -> str:
     for idx, (phase, anomaly) in enumerate(anomalies[:top_k], start=1):
         start, end = phase["time_range"]
         lines.append(
-            f"{idx}. [{start:.1f}-{end:.1f}s] {anomaly['joint_name']} "
+            f"{idx}. [{start:.1f}-{end:.1f}秒] "
+            f"{JOINT_DISPLAY_NAMES.get(anomaly['joint_name'].split(':', 1)[0], anomaly['joint_name'])} "
             f"平均偏差 {anomaly['mean_deviation_deg']:.1f}度"
         )
     return "\n".join(lines)

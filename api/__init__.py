@@ -1,1 +1,1 @@
-"""MoveScope API package."""
+"""MoveScope API 包。"""

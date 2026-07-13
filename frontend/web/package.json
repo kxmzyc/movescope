@@ -1,7 +1,10 @@
 {
-  "name": "web",
+  "name": "movescope-web",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.2.1",
+  "description": "MoveScope 单目深蹲动作评估中文工作台",
+  "repository": "https://github.com/kxmzyc/movescope",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

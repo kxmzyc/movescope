@@ -1,4 +1,4 @@
-"""Reusable experiment helpers for MoveScope notebooks."""
+"""供 MoveScope notebook 复用的实验辅助函数。"""
 
 from __future__ import annotations
 

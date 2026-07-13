@@ -1,4 +1,4 @@
-"""Gradio MVP for MoveScope squat assessment."""
+"""MoveScope 深蹲动作评估 Gradio 调试界面。"""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
 
 from movescope.alignment import WeightedSegmentedDTWAligner
 from movescope.assessment import AssessmentEngine, generate_text_summary
-from movescope.features import FeatureExtractor, JOINT_NAMES
+from movescope.features import FeatureExtractor, JOINT_DISPLAY_NAMES, JOINT_NAMES
 from movescope.llm_advisor import LLMAdvisor
 from movescope.pose_extractor import PoseExtractor
 from movescope.template import ActionTemplate
@@ -41,7 +41,7 @@ SKELETON_EDGES = [
 
 def assess_video(video_path: str | None, action: str = "squat") -> tuple[str | None, float, Any, str]:
     if not video_path:
-        return None, 0.0, _empty_bar_data(), "Upload a squat video first."
+        return None, 0.0, _empty_bar_data(), "请先上传深蹲视频。"
 
     try:
         template = ActionTemplate.load(action)
@@ -50,7 +50,7 @@ def assess_video(video_path: str | None, action: str = "squat") -> tuple[str | N
             None,
             0.0,
             _empty_bar_data(),
-            f"Template not found for action '{action}'. Run scripts/build_template.py first.",
+            f"未找到动作“{action}”的模板，请先运行 scripts/build_template.py。",
         )
 
     try:
@@ -71,7 +71,7 @@ def assess_video(video_path: str | None, action: str = "squat") -> tuple[str | N
         text = f"{generate_text_summary(result)}\n\n纠错建议：\n{advice}"
         return overlay_path, float(result["total_score"]), _bar_data(result), text
     except Exception as exc:
-        return None, 0.0, _empty_bar_data(), f"Assessment failed: {exc}"
+        return None, 0.0, _empty_bar_data(), f"评估失败：{exc}"
 
 
 def render_overlay(video_path: str, pose: dict[str, Any], result: dict[str, Any]) -> str:
@@ -81,7 +81,7 @@ def render_overlay(video_path: str, pose: dict[str, Any], result: dict[str, Any]
 
     capture = cv2.VideoCapture(video_path)
     if not capture.isOpened():
-        raise ValueError(f"Could not open video: {video_path}")
+        raise ValueError(f"无法打开视频：{video_path}")
 
     fps = float(capture.get(cv2.CAP_PROP_FPS) or pose.get("fps", 30.0) or 30.0)
     width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -94,7 +94,7 @@ def render_overlay(video_path: str, pose: dict[str, Any], result: dict[str, Any]
     )
     if not writer.isOpened():
         capture.release()
-        raise RuntimeError("Could not create the overlay video writer.")
+        raise RuntimeError("无法创建骨架叠加视频。")
 
     coords_2d = pose["coords_2d"]
     confidence = pose["confidence"]
@@ -113,7 +113,7 @@ def render_overlay(video_path: str, pose: dict[str, Any], result: dict[str, Any]
 
         cv2.putText(
             frame,
-            f"Score {score:.1f}",
+            f"{score:.1f} / 100",
             (24, 44),
             cv2.FONT_HERSHEY_SIMPLEX,
             1.0,
@@ -173,30 +173,30 @@ def _bar_data(result: dict[str, Any]) -> Any:
     for joint, values in result.get("per_joint_summary", {}).items():
         rows.append(
             {
-                "joint": joint.split(":", 1)[0],
-                "mean_dev": round(float(values.get("mean_dev", 0.0)), 2),
-                "anomaly_ratio": round(float(values.get("anomaly_ratio", 0.0)), 3),
+                "关节": JOINT_DISPLAY_NAMES.get(joint.split(":", 1)[0], joint.split(":", 1)[0]),
+                "平均偏差（度）": round(float(values.get("mean_dev", 0.0)), 2),
+                "异常帧占比（%）": round(float(values.get("anomaly_ratio", 0.0)) * 100.0, 1),
             }
         )
-    rows.sort(key=lambda row: row["mean_dev"], reverse=True)
-    return pd.DataFrame(rows or [{"joint": "none", "mean_dev": 0.0, "anomaly_ratio": 0.0}])
+    rows.sort(key=lambda row: row["平均偏差（度）"], reverse=True)
+    return pd.DataFrame(rows or [{"关节": "暂无", "平均偏差（度）": 0.0, "异常帧占比（%）": 0.0}])
 
 
 def _empty_bar_data() -> Any:
     import pandas as pd
 
-    return pd.DataFrame([{"joint": "none", "mean_dev": 0.0, "anomaly_ratio": 0.0}])
+    return pd.DataFrame([{"关节": "暂无", "平均偏差（度）": 0.0, "异常帧占比（%）": 0.0}])
 
 
 def create_demo():
     import gradio as gr
 
     with gr.Blocks(title="MoveScope", theme=gr.themes.Soft(primary_hue="red", neutral_hue="stone")) as demo:
-        gr.Markdown("# MoveScope")
+        gr.Markdown("# MoveScope 深蹲动作评估")
         with gr.Row(equal_height=True):
             with gr.Column(scale=1, min_width=280):
                 video = gr.Video(label="上传待测视频")
-                action = gr.Textbox(label="动作类型", value="squat")
+                action = gr.Dropdown(label="动作类型", choices=[("深蹲", "squat")], value="squat")
                 run = gr.Button("开始评估", variant="primary")
             with gr.Column(scale=1, min_width=320):
                 output_video = gr.Video(label="骨架可视化")
@@ -204,10 +204,10 @@ def create_demo():
                 score = gr.Number(label="总分", precision=1)
                 deviations = gr.BarPlot(
                     label="各关节平均偏差",
-                    x="joint",
-                    y="mean_dev",
-                    tooltip=["joint", "mean_dev", "anomaly_ratio"],
-                    y_title="degrees",
+                    x="关节",
+                    y="平均偏差（度）",
+                    tooltip=["关节", "平均偏差（度）", "异常帧占比（%）"],
+                    y_title="偏差（度）",
                 )
                 summary = gr.Textbox(label="诊断摘要与纠错建议", lines=10)
 

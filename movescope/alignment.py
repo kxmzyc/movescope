@@ -1,4 +1,4 @@
-"""DTW-based temporal alignment."""
+"""基于 DTW 的时序对齐。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ Path = list[tuple[int, int]]
 
 @dataclass
 class DTWAligner:
-    """Self-contained standard DTW aligner."""
+    """自包含的标准 DTW 对齐器。"""
 
     def distance(self, query_frame: np.ndarray, reference_frame: np.ndarray) -> float:
         return float(np.linalg.norm(query_frame - reference_frame))
@@ -21,9 +21,9 @@ class DTWAligner:
         query = np.asarray(query, dtype=float)
         reference = np.asarray(reference, dtype=float)
         if query.ndim != 2 or reference.ndim != 2:
-            raise ValueError("query and reference must be 2D arrays")
+            raise ValueError("待测序列与参考序列必须是二维数组")
         if query.shape[1] != reference.shape[1]:
-            raise ValueError("query and reference feature dimensions must match")
+            raise ValueError("待测序列与参考序列的特征维度必须一致")
         if len(query) == 0 or len(reference) == 0:
             return []
 
@@ -64,7 +64,7 @@ class DTWAligner:
 
 @dataclass
 class WeightedSegmentedDTWAligner(DTWAligner):
-    """Weighted DTW with optional KMeans-style phase segmentation."""
+    """支持类 KMeans 阶段分割的加权 DTW 对齐器。"""
 
     min_segment_frames: int = 3
 
@@ -74,7 +74,7 @@ class WeightedSegmentedDTWAligner(DTWAligner):
     def compute_joint_weights(self, template) -> np.ndarray:
         std = np.asarray(template.std, dtype=float)
         if std.ndim != 1 or len(std) == 0 or not np.isfinite(std).all() or np.any(std < 0):
-            raise ValueError("template std must contain finite non-negative values")
+            raise ValueError("模板标准差必须由有限非负值组成")
         weights = 1.0 / (std + 1e-6)
         return self._normalize_weights(weights, len(std))
 
@@ -155,11 +155,11 @@ class WeightedSegmentedDTWAligner(DTWAligner):
         query = np.asarray(query, dtype=float)
         reference = np.asarray(reference, dtype=float)
         if query.ndim != 2 or reference.ndim != 2:
-            raise ValueError("query and reference must be 2D arrays")
+            raise ValueError("待测序列与参考序列必须是二维数组")
         if query.shape[1] != reference.shape[1]:
-            raise ValueError("query and reference feature dimensions must match")
+            raise ValueError("待测序列与参考序列的特征维度必须一致")
         if not np.isfinite(query).all() or not np.isfinite(reference).all():
-            raise ValueError("query and reference must contain only finite values")
+            raise ValueError("待测序列与参考序列只能包含有限值")
 
         default_weights = np.ones(query.shape[1], dtype=float) if weights is None else weights
         weights = self._normalize_weights(default_weights, query.shape[1])
@@ -187,10 +187,10 @@ class WeightedSegmentedDTWAligner(DTWAligner):
     def _normalize_weights(weights: np.ndarray, feature_dim: int) -> np.ndarray:
         normalized = np.asarray(weights, dtype=float)
         if normalized.ndim != 1 or normalized.shape[0] != feature_dim:
-            raise ValueError("weights must match feature dimension")
+            raise ValueError("权重维度必须与特征维度一致")
         if not np.isfinite(normalized).all() or np.any(normalized < 0):
-            raise ValueError("weights must contain finite non-negative values")
+            raise ValueError("权重必须由有限非负值组成")
         total = float(normalized.sum())
         if total <= 0:
-            raise ValueError("weights must have a positive sum")
+            raise ValueError("权重总和必须大于零")
         return normalized / total

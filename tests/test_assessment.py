@@ -52,5 +52,5 @@ def test_generate_text_summary():
 def test_non_finite_features_are_rejected():
     engine = AssessmentEngine(make_template(), DTWAligner(), PassthroughFeatureExtractor())
 
-    with pytest.raises(ValueError, match="finite"):
+    with pytest.raises(ValueError, match="有限值"):
         engine.assess(np.full((5, 12), np.nan))

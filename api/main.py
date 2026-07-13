@@ -1,4 +1,4 @@
-"""FastAPI backend for MoveScope assessment."""
+"""MoveScope 动作评估 FastAPI 后端。"""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def _cors_origins() -> list[str]:
 app = FastAPI(
     title="MoveScope API",
     version=__version__,
-    description="Interpretable monocular squat assessment prototype.",
+    description="可解释的单目深蹲动作质量评估服务。",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -61,40 +61,40 @@ app.add_middleware(
 )
 
 
-@app.get("/health")
+@app.get("/health", summary="检查服务状态")
 def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
 
 
-@app.get("/actions")
+@app.get("/actions", summary="获取可用动作模板")
 def actions() -> dict[str, list[str]]:
     template_dir = Path("data/templates")
     names = sorted(path.stem for path in template_dir.glob("*.npz")) if template_dir.exists() else []
     return {"actions": names}
 
 
-@app.get("/demo")
+@app.get("/demo", summary="运行确定性合成验证")
 def demo() -> dict[str, Any]:
     return generate_synthetic_demo()
 
 
-@app.post("/assess")
+@app.post("/assess", summary="评估上传的视频")
 async def assess(
-    video: UploadFile = File(...),
-    action: str = Form("squat"),
+    video: UploadFile = File(..., description="待评估的视频文件"),
+    action: str = Form("squat", description="动作标识，例如 squat"),
 ) -> dict[str, Any]:
     action = _validate_action(action)
     suffix = Path(video.filename or "upload.mp4").suffix.lower() or ".mp4"
     if suffix not in ALLOWED_VIDEO_EXTENSIONS:
         supported = ", ".join(sorted(ALLOWED_VIDEO_EXTENSIONS))
-        raise HTTPException(status_code=415, detail=f"Unsupported video type. Use one of: {supported}")
+        raise HTTPException(status_code=415, detail=f"不支持该视频格式，请使用以下格式之一：{supported}")
 
     try:
         template = ActionTemplate.load(action)
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=422,
-            detail=f"Template for action '{action}' not found. Please run scripts/build_template.py first.",
+            detail=f"未找到动作“{action}”的模板，请先运行 scripts/build_template.py。",
         ) from exc
 
     tmp_path = Path(tempfile.gettempdir()) / f"movescope_upload_{uuid.uuid4().hex}{suffix}"
@@ -106,7 +106,7 @@ async def assess(
                 timeout=300.0,
             )
         except asyncio.TimeoutError as exc:
-            raise HTTPException(status_code=504, detail="Assessment timed out.") from exc
+            raise HTTPException(status_code=504, detail="评估超时，请缩短视频后重试。") from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
@@ -119,7 +119,7 @@ def _validate_action(action: str) -> str:
     if not ACTION_PATTERN.fullmatch(cleaned):
         raise HTTPException(
             status_code=422,
-            detail="Action must contain only letters, numbers, underscores, or hyphens.",
+            detail="动作标识只能包含英文字母、数字、下划线或连字符。",
         )
     return cleaned
 
@@ -132,21 +132,21 @@ async def _save_upload(video: UploadFile, output_path: Path) -> None:
             if total > MAX_UPLOAD_BYTES:
                 raise HTTPException(
                     status_code=413,
-                    detail=f"Video exceeds the {MAX_UPLOAD_BYTES // 1024 // 1024} MB upload limit.",
+                    detail=f"视频超过 {MAX_UPLOAD_BYTES // 1024 // 1024} MB 上传上限。",
                 )
             handle.write(chunk)
     if total == 0:
-        raise HTTPException(status_code=400, detail="Uploaded video is empty.")
+        raise HTTPException(status_code=400, detail="上传的视频为空。")
 
 
 def _assess_file(video_path: Path, template: ActionTemplate) -> dict[str, Any]:
     pose = PoseExtractor().extract(str(video_path))
     n_frames = int(pose.get("n_frames", 0))
     if n_frames <= 0:
-        raise ValueError("No video frames could be decoded.")
+        raise ValueError("无法从视频中解码出任何画面。")
     valid_pose_ratio = 1.0 - (float(pose.get("skipped_frames", 0)) / n_frames)
     if valid_pose_ratio < 0.5:
-        raise ValueError("Pose detection failed on more than half of the video frames.")
+        raise ValueError("超过一半的视频帧未检测到有效人体姿态。")
 
     coords_3d = pose.get("coords_3d")
     if coords_3d is None:

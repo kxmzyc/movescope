@@ -1,4 +1,4 @@
-"""Expert-template statistics for MoveScope."""
+"""MoveScope 专家动作模板统计。"""
 
 from __future__ import annotations
 
@@ -25,11 +25,11 @@ class ActionTemplate:
     def build(self, expert_dir: str | Path, pose_extractor, feature_extractor, k: float = DEFAULT_K) -> None:
         expert_path = Path(expert_dir)
         if not expert_path.exists():
-            raise FileNotFoundError(f"Expert directory not found: {expert_path}")
+            raise FileNotFoundError(f"未找到专家视频目录：{expert_path}")
 
         video_files = sorted(path for path in expert_path.iterdir() if path.suffix.lower() in VIDEO_EXTENSIONS)
         if not video_files:
-            raise ValueError(f"No expert videos found in {expert_path}")
+            raise ValueError(f"目录中没有可用的专家视频：{expert_path}")
 
         feature_sequences = []
         for video_path in video_files:
@@ -48,19 +48,19 @@ class ActionTemplate:
         min_tolerance_deg: float = MIN_TOLERANCE_DEG,
     ) -> None:
         if not feature_sequences:
-            raise ValueError("feature_sequences cannot be empty")
+            raise ValueError("feature_sequences 不能为空")
         if min_tolerance_deg <= 0 or not np.isfinite(min_tolerance_deg):
-            raise ValueError("min_tolerance_deg must be a positive finite value")
+            raise ValueError("min_tolerance_deg 必须是正有限值")
 
         sequences = [np.asarray(seq, dtype=float) for seq in feature_sequences]
         feature_dim = sequences[0].shape[1] if sequences[0].ndim == 2 else None
         for sequence in sequences:
             if sequence.ndim != 2 or len(sequence) == 0:
-                raise ValueError("each feature sequence must be a non-empty 2D array")
+                raise ValueError("每个特征序列都必须是非空二维数组")
             if sequence.shape[1] != feature_dim:
-                raise ValueError("all feature sequences must use the same feature dimension")
+                raise ValueError("所有特征序列的特征维度必须一致")
             if not np.isfinite(sequence).all():
-                raise ValueError("feature sequences must contain only finite values")
+                raise ValueError("特征序列只能包含有限值")
 
         vectors = np.vstack([sequence.mean(axis=0) for sequence in sequences])
         self.mean = vectors.mean(axis=0)
@@ -72,7 +72,7 @@ class ActionTemplate:
 
     def save(self, output_path: str | Path | None = None) -> Path:
         if self.mean is None or self.std is None or self.tolerance is None or self.representative_seq is None:
-            raise ValueError("template has not been built")
+            raise ValueError("动作模板尚未构建")
         path = Path(output_path) if output_path else Path("data/templates") / f"{self.action_name}.npz"
         path.parent.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(
@@ -90,7 +90,7 @@ class ActionTemplate:
     def load(cls, action_name: str, path: str | Path | None = None) -> "ActionTemplate":
         template_path = Path(path) if path else Path("data/templates") / f"{action_name}.npz"
         if not template_path.exists():
-            raise FileNotFoundError(f"Template not found: {template_path}")
+            raise FileNotFoundError(f"未找到动作模板：{template_path}")
         data = np.load(template_path, allow_pickle=False)
         return cls(
             action_name=str(data["action_name"]),

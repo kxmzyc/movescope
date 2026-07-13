@@ -1,4 +1,4 @@
-"""MediaPipe-based pose extraction."""
+"""基于 MediaPipe 的人体姿态提取。"""
 
 from __future__ import annotations
 
@@ -44,13 +44,13 @@ class PoseExtractor:
             import mediapipe as mp
         except ImportError as exc:
             raise RuntimeError(
-                "Pose extraction requires opencv-python and mediapipe. "
-                "Use a Python 3.10/3.11 environment and run: pip install -r requirements.txt"
+                "姿态提取需要 opencv-python 和 mediapipe。"
+                "请使用 Python 3.10/3.11 环境并运行：pip install -r requirements.txt"
             ) from exc
 
         capture = cv2.VideoCapture(video_path)
         if not capture.isOpened():
-            raise ValueError(f"Could not open video: {video_path}")
+            raise ValueError(f"无法打开视频：{video_path}")
 
         fps = float(capture.get(cv2.CAP_PROP_FPS) or 30.0)
         coords_2d = []
@@ -90,9 +90,9 @@ class PoseExtractor:
             try:
                 coords_3d = self.lift_to_3d(coords_2d_arr, fps)
             except Exception as exc:
-                print(f"WARNING: MotionBERT lifting failed; falling back to pseudo-3D landmarks: {exc}")
+                print(f"警告：MotionBERT 三维提升失败，已回退到伪三维关键点：{exc}")
         else:
-            print(f"WARNING: MotionBERT checkpoint not found at {self.motionbert_checkpoint}; coords_3d=None")
+            print(f"警告：未在 {self.motionbert_checkpoint} 找到 MotionBERT 检查点，coords_3d=None")
 
         return {
             "fps": fps,
@@ -108,19 +108,17 @@ class PoseExtractor:
     def lift_to_3d(self, coords_2d: np.ndarray, fps: float) -> np.ndarray:
         coords = np.asarray(coords_2d, dtype=float)
         if coords.ndim != 3 or coords.shape[1:] != (len(JOINT_NAMES), 2):
-            raise ValueError(f"coords_2d must have shape (T, {len(JOINT_NAMES)}, 2)")
+            raise ValueError(f"coords_2d 的形状必须为 (T, {len(JOINT_NAMES)}, 2)")
         if not self.motionbert_checkpoint.exists():
             raise FileNotFoundError(
-                f"MotionBERT checkpoint not found: {self.motionbert_checkpoint}. "
-                "See docs/motionbert_setup.md for setup steps."
+                f"未找到 MotionBERT 检查点：{self.motionbert_checkpoint}。"
+                "配置步骤请参阅 docs/motionbert_setup.md。"
             )
 
-        # The upstream MotionBERT package has several model entry points across
-        # releases. Until the local checkpoint and repository are installed, keep
-        # the integration boundary explicit instead of silently inventing 3D data.
+        # MotionBERT 不同版本使用不同的模型入口。在本地检查点和上游仓库完成
+        # 固定配置前，明确保留集成边界，避免静默生成不可信的三维数据。
         raise NotImplementedError(
-            "MotionBERT checkpoint detected, but the local MotionBERT inference adapter "
-            "has not been configured for this checkout."
+            "已检测到 MotionBERT 检查点，但当前项目尚未配置本地 MotionBERT 推理适配器。"
         )
 
     def _map_landmarks(self, landmarks, world_landmarks, width: int, height: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -167,7 +165,7 @@ class PoseExtractor:
         for joint_idx in range(coords.shape[1]):
             good = confidence[:, joint_idx] >= self.min_confidence
             if not good.any():
-                print(f"WARNING: no reliable frames for joint {JOINT_NAMES[joint_idx]}")
+                print(f"警告：关节 {JOINT_NAMES[joint_idx]} 没有可靠帧")
                 filled[:, joint_idx, :] = np.nan
                 continue
             good_indices = np.where(good)[0]

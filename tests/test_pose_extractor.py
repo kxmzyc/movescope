@@ -23,6 +23,6 @@ def test_lift_to_3d_requires_checkpoint(tmp_path):
     try:
         extractor.lift_to_3d(coords_2d, fps=30.0)
     except FileNotFoundError as exc:
-        assert "MotionBERT checkpoint not found" in str(exc)
+        assert "未找到 MotionBERT 检查点" in str(exc)
     else:
-        raise AssertionError("Expected missing MotionBERT checkpoint to raise FileNotFoundError")
+        raise AssertionError("缺少 MotionBERT 检查点时应抛出 FileNotFoundError")

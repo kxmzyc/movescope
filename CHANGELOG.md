@@ -1,16 +1,23 @@
-# Changelog
+# 更新日志
+
+## 0.2.1 - 2026-07-13
+
+- 将 React、Gradio、FastAPI 错误提示和命令行输出统一为中文。
+- 为动作名称、17 个关节、图表字段和合成验证状态增加中文显示映射，同时保持 API 字段兼容。
+- 将 README、引用说明、MotionBERT 状态说明与实验 notebook 中文化。
+- 修正中文终端输出编码，并更新中文界面截图。
 
 ## 0.2.0 - 2026-07-13
 
-- Reject non-finite features and degenerate bone geometry instead of returning misleading scores.
-- Add a 5-degree template tolerance floor for single or low-variance expert sets.
-- Preserve complete DTW coverage by falling back to full weighted alignment when segment counts differ.
-- Validate feature weights, action names, upload extensions, empty uploads, file size, and pose coverage.
-- Add local-development CORS and a deterministic synthetic `/demo` assessment.
-- Add template discovery, synthetic verification, richer findings, and JSON export to the React workspace.
-- Expand the Python regression suite to 40 tests.
-- Correct MotionBERT, benchmark, citation, and data-provenance documentation.
+- 拒绝非有限特征和退化骨段，避免返回误导性评分。
+- 为单样本或低方差专家模板增加 5 度容差下限。
+- 分段数量不一致时回退到完整加权对齐，确保 DTW 路径覆盖完整序列。
+- 校验特征权重、动作标识、上传扩展名、空文件、文件大小和姿态检测覆盖率。
+- 增加本地开发 CORS 配置与确定性合成 `/demo` 评估。
+- 为 React 工作台增加模板发现、合成验证、详细问题展示和 JSON 导出。
+- 将 Python 回归测试扩展到 40 项。
+- 修正 MotionBERT、基准结果、引用方式和数据来源说明。
 
 ## 0.1.0 - 2026-06-28
 
-- Initial prototype with MediaPipe extraction, angle features, template scoring, DTW alignment, FastAPI, Gradio, and React entry points.
+- 首次发布原型，提供 MediaPipe 姿态提取、角度特征、模板评分、DTW 对齐、FastAPI、Gradio 和 React 入口。

@@ -51,5 +51,5 @@ def test_single_expert_uses_practical_tolerance_floor():
 def test_template_rejects_non_finite_features():
     template = ActionTemplate("squat")
 
-    with pytest.raises(ValueError, match="finite"):
+    with pytest.raises(ValueError, match="有限值"):
         template.build_from_features([np.full((8, 12), np.nan)])

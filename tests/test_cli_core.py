@@ -15,7 +15,7 @@ def test_fetch_videos_dry_run_handles_unprintable_error(monkeypatch, capsys):
     ok, bad = fetch_videos.dry_run("标准深蹲教学", 1)
 
     assert (ok, bad) == (0, 1)
-    assert "[failed]" in capsys.readouterr().out
+    assert "[失败]" in capsys.readouterr().out
 
 
 def test_feature_template_assessment_cli(tmp_path):
