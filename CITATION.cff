@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use MoveScope, please cite this software."
+title: "MoveScope: Interpretable Monocular Squat Assessment"
+type: software
+authors:
+  - family-names: Zheng
+    given-names: Yuchen
+repository-code: "https://github.com/kxmzyc/movescope"
+url: "https://github.com/kxmzyc/movescope"
+version: 0.2.0
+date-released: 2026-07-13
+license: Apache-2.0
