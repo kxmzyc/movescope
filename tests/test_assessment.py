@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from movescope.alignment import DTWAligner
 from movescope.assessment import AssessmentEngine, generate_text_summary
@@ -46,3 +47,10 @@ def test_generate_text_summary():
 
     assert "总分" in summary
     assert "主要问题" in summary
+
+
+def test_non_finite_features_are_rejected():
+    engine = AssessmentEngine(make_template(), DTWAligner(), PassthroughFeatureExtractor())
+
+    with pytest.raises(ValueError, match="finite"):
+        engine.assess(np.full((5, 12), np.nan))

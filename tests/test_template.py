@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from movescope.template import ActionTemplate
 
@@ -37,3 +38,18 @@ def test_template_build_from_expert_videos(tmp_path):
     assert template.n_videos == 2
     assert np.allclose(template.mean, np.full(12, 1.5))
     assert np.all(template.tolerance > 0)
+
+
+def test_single_expert_uses_practical_tolerance_floor():
+    template = ActionTemplate("squat")
+
+    template.build_from_features([np.zeros((8, 12))])
+
+    assert np.all(template.tolerance >= 5.0)
+
+
+def test_template_rejects_non_finite_features():
+    template = ActionTemplate("squat")
+
+    with pytest.raises(ValueError, match="finite"):
+        template.build_from_features([np.full((8, 12), np.nan)])

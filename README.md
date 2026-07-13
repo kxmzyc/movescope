@@ -1,44 +1,53 @@
 # MoveScope
 
-[![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088ff)](.github/workflows/ci.yml)
+[![CI](https://github.com/kxmzyc/movescope/actions/workflows/ci.yml/badge.svg)](https://github.com/kxmzyc/movescope/actions/workflows/ci.yml)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776ab)](https://www.python.org/)
+[![Version](https://img.shields.io/badge/version-0.2.0-2f6f62)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
-MoveScope is a monocular-video action quality assessment prototype for interpretable squat analysis.
+MoveScope is an interpretable monocular squat-assessment prototype. It maps MediaPipe pose output to a custom 17-joint skeleton, derives 12 joint-angle features, aligns a test sequence with an expert template using weighted segmented DTW, and returns structured timing and deviation feedback.
 
-![MoveScope demo preview](docs/demo.gif)
+The repository includes a FastAPI service, a React/Vite workspace, a Gradio debug UI, CLI tools, and a deterministic synthetic demo that exercises the real template, alignment, and scoring code without claiming real-video accuracy.
 
-The current v0.1.0 prototype extracts MediaPipe pose landmarks, converts them into interpretable joint-angle features, aligns test motion against an expert template with weighted segmented DTW, and returns structured correction feedback through CLI scripts, a FastAPI backend, a Gradio MVP, and a React/Vite demo frontend.
+![MoveScope synthetic verification workspace](docs/dashboard.png)
 
-## Features
+## What Works
 
-- Monocular pose extraction with MediaPipe 2D landmarks and pseudo-3D world landmarks.
-- Twelve interpretable angle features focused on lower-body and posture deviations.
-- Expert-template statistics with tolerance bands for action-specific scoring.
-- Standard DTW and weighted segmented DTW alignment.
-- Structured diagnosis with total score, per-joint deviation summaries, anomaly timing, and fallback coaching text.
-- Optional OpenAI-backed advice path when `OPENAI_API_KEY` and the `openai` package are available.
-- Reproducible experiment scaffolds for ablation, viewpoint robustness, and template sensitivity studies.
-- Local Gradio app, FastAPI service, and React/Vite web demo.
+- MediaPipe pose extraction and mapping from 33 landmarks to a custom 17-joint skeleton.
+- Twelve interpretable angle features with invalid-skeleton detection.
+- Expert-template construction with a configurable 5-degree tolerance floor.
+- Standard DTW and variance-weighted segmented DTW with complete-path fallback.
+- Total score, per-feature deviation, anomaly ratio, peak deviation, and peak time.
+- FastAPI endpoints for health, templates, synthetic verification, and video assessment.
+- React/Vite interface with template discovery, video validation, synthetic demo, diagnostics, and JSON export.
+- Local fallback coaching plus an optional OpenAI advice path.
+- Python tests and frontend checks in GitHub Actions.
 
-## Architecture
+## System Flow
 
-```text
-video
-  -> PoseExtractor
-  -> FeatureExtractor
-  -> ActionTemplate
-  -> WeightedSegmentedDTWAligner
-  -> AssessmentEngine
-  -> LLMAdvisor / API / UI
+```mermaid
+flowchart LR
+    A["Uploaded squat video"] --> B["MediaPipe pose extraction"]
+    B --> C["Custom 17-joint skeleton"]
+    C --> D["12 joint-angle features"]
+    E["Expert feature template"] --> F["Weighted segmented DTW"]
+    D --> F
+    F --> G["Deviation and timing diagnosis"]
+    G --> H["FastAPI"]
+    H --> I["React workspace"]
+    H --> J["Gradio debug UI"]
+    G --> K["Local or optional LLM advice"]
 ```
 
-The current extractor uses MediaPipe world landmarks as pseudo-3D coordinates. Full MotionBERT-style 3D lifting is not required for the v0.1.0 pipeline and remains a future extension point.
+The segmented aligner falls back to full-sequence weighted DTW whenever independently detected segment counts do not match. This preserves complete start-to-end alignment rather than dropping frames.
 
-## Installation
+## Quick Start: Synthetic Verification
 
-Use Python 3.10 or 3.11. The pinned MediaPipe dependency is not expected to work on Python 3.13.
+This path requires no local videos or templates. It is intended to verify the API, UI, DTW, scoring, and report-export flow.
 
-Windows PowerShell:
+### 1. Install Python dependencies
+
+Use Python 3.10 or 3.11. MediaPipe 0.10.x is not supported by the project on Python 3.13.
 
 ```powershell
 python -m venv .venv
@@ -47,7 +56,7 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-macOS/Linux:
+macOS/Linux activation:
 
 ```bash
 python3.11 -m venv .venv
@@ -56,114 +65,155 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Check the local environment:
+### 2. Start the API
 
 ```bash
-python scripts/check_environment.py
+python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-## Quick Start
-
-Search for candidate videos without downloading:
+Verify it:
 
 ```bash
-python scripts/fetch_videos.py --action squat --mode expert --n 3 --lang zh --dry-run
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/demo
 ```
 
-Download videos into experiment folders:
+Interactive API documentation is available at `http://127.0.0.1:8000/docs`.
 
-```bash
-python scripts/fetch_videos.py --action squat --mode test --n 20 --lang both --output-dir data/test/good_squat
-python scripts/fetch_videos.py --action squat --mode test --n 20 --lang both --output-dir data/test/bad_squat
-```
-
-Run the pose extraction smoke test on a local squat video:
-
-```bash
-python scripts/hello_world.py --video path/to/squat.mp4
-```
-
-Build and assess from precomputed feature arrays:
-
-```bash
-python scripts/build_template.py --action squat --features-dir path/to/expert_features
-python scripts/assess_features.py --action squat --features path/to/test_features.npy
-```
-
-Start the Gradio demo after a squat template exists:
-
-```bash
-python frontend/gradio_app.py
-```
-
-Open `http://localhost:7860`, upload a squat video, and inspect the skeleton overlay, score, joint-deviation chart, and correction advice.
-
-Start the FastAPI backend:
-
-```bash
-python -m uvicorn api.main:app --port 8000 --reload
-```
-
-Useful endpoints:
-
-- `GET /health`
-- `GET /actions`
-- `POST /assess` with multipart fields `video` and optional `action`
-
-Start the React/Vite frontend:
+### 3. Start the web workspace
 
 ```bash
 cd frontend/web
-npm install
+npm ci
 npm run dev
 ```
 
-The React app talks to `http://127.0.0.1:8000` by default. Set `VITE_MOVESCOPE_API` if the API is running elsewhere.
+Open `http://127.0.0.1:5173`, wait for `API 0.2.0 ready`, and select **Run synthetic demo**. Results are marked as synthetic in both the response metadata and the UI.
 
-## Experiments
+## Real-Video Workflow
 
-The notebooks are designed to execute safely without local data and print the missing-data requirements. Add local videos, templates, or precomputed feature arrays before running full experiments.
+MoveScope does not ship third-party exercise footage or a pretrained expert template. Use only videos you own or are authorized to process.
 
-```bash
-jupyter nbconvert --to notebook --execute notebooks/ablation_experiment.ipynb
-jupyter nbconvert --to notebook --execute notebooks/viewpoint_robustness.ipynb
-jupyter nbconvert --to notebook --execute notebooks/template_sensitivity.ipynb
+### 1. Prepare expert videos
+
+```text
+data/
+  expert/
+    squat/
+      expert_01.mp4
+      expert_02.mp4
 ```
 
-For template sensitivity, place precomputed feature arrays under:
+The entire `data/` directory is git-ignored.
 
-- `data/features/expert_squat/`
-- `data/features/test_squat/`
-
-## Development
-
-Run the Python tests:
+### 2. Build the expert template
 
 ```bash
+python scripts/build_template.py \
+  --action squat \
+  --expert-dir data/expert/squat
+```
+
+Expected output: `data/templates/squat.npz`. After the API restarts, `GET /actions` should return `{"actions":["squat"]}`.
+
+Templates can also be built from precomputed `(T, 12)` feature arrays:
+
+```bash
+python scripts/build_template.py \
+  --action squat \
+  --features-dir data/features/expert_squat
+```
+
+### 3. Assess a video
+
+Use the React or Gradio UI, or call the API directly:
+
+```bash
+curl -X POST http://127.0.0.1:8000/assess \
+  -F "action=squat" \
+  -F "video=@data/test/squat.mp4"
+```
+
+The default upload limit is 100 MB. Supported extensions are MP4, MOV, AVI, WEBM, and MKV.
+
+## API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Service status and version |
+| `GET` | `/actions` | Available local templates |
+| `GET` | `/demo` | Deterministic synthetic assessment |
+| `POST` | `/assess` | Assess an uploaded video against a template |
+
+`POST /assess` rejects unsafe action names, unsupported extensions, empty files, uploads over the configured limit, low pose-detection coverage, and non-finite feature data.
+
+## Configuration
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `MOVESCOPE_MAX_UPLOAD_MB` | No | `100` | Maximum uploaded video size |
+| `MOVESCOPE_CORS_ORIGINS` | No | Local Vite origins | Comma-separated allowed web origins |
+| `OPENAI_API_KEY` | No | unset | Enables optional API-backed coaching advice |
+| `VITE_MOVESCOPE_API` | No | `http://127.0.0.1:8000` | Frontend API base URL |
+
+Install the optional OpenAI dependency with:
+
+```bash
+pip install -r requirements-llm.txt
+```
+
+Without an API key or if the provider fails, MoveScope returns deterministic local coaching text.
+
+## Development and Verification
+
+```bash
+pip install -r requirements-dev.txt
 python -m pytest tests -q
-```
 
-Run the frontend checks:
-
-```bash
 cd frontend/web
+npm ci
 npm run build
 npm run lint
 ```
 
-Continuous integration is configured in `.github/workflows/ci.yml`. After publishing the repository, replace the static CI badge with the repository-specific GitHub Actions status badge.
+Current v0.2.0 verification scope:
 
-## Project Status
+- 40 Python unit, CLI, API, validation, and regression tests.
+- FastAPI success/error paths, CORS, synthetic demo, and upload-limit checks.
+- React TypeScript production build and oxlint.
+- Synthetic arrays and mocks only; no public real-video benchmark is included.
 
-- Core feature, template, DTW alignment, and assessment modules have unit tests.
-- Local advice fallback, Gradio MVP, FastAPI backend, and React/Vite frontend are implemented.
-- Experiment notebooks are scaffolded for ablation, viewpoint robustness, and template sensitivity.
-- Real-video assessment requires local data and a built expert template.
-- Generated `docs/demo.gif` is a UI preview, not an evaluation result from a real uploaded video.
+## Project Structure
+
+```text
+movescope/          Core pose, features, templates, DTW, scoring, and demo
+api/                FastAPI service
+frontend/web/       React/Vite assessment workspace
+frontend/           Gradio debug UI
+scripts/            Environment, template, feature, and data helpers
+tests/              Python regression and API tests
+notebooks/          Experiment scaffolds; no published result claims
+docs/               Setup and project documentation
+```
+
+## Known Limitations
+
+- The 17-joint representation is project-specific: 15 joints map directly from MediaPipe, while pelvis and neck are bilateral midpoints. It is not the standard COCO-17 layout.
+- The default pipeline uses MediaPipe world landmarks as pseudo-3D coordinates; they are not a calibrated biomechanical reconstruction.
+- The MotionBERT inference adapter is not implemented. A checkpoint alone does not enable that path.
+- Weighted segmented DTW is a prototype. No accuracy, clinical validity, viewpoint robustness, or superiority claim is made without a public dataset and experiment results.
+- Experiment notebooks are reproducible scaffolds and intentionally report missing-data requirements when local data is absent.
+- MoveScope is for training feedback and software research only. It is not medical advice.
+
+## Data and Security
+
+- `data/`, `.env*`, local models, caches, generated videos, and frontend build output are excluded from git.
+- Do not commit private exercise videos, API keys, or identifiable health information.
+- The video-search helper is provided for metadata discovery. Follow platform terms and use only content you are authorized to download and process.
 
 ## Citation
 
-If you use MoveScope in academic work, cite the placeholder entry in [CITATION.md](CITATION.md).
+GitHub can read [CITATION.cff](CITATION.cff). A BibTeX software entry is also available in [CITATION.md](CITATION.md).
 
 ## License
 

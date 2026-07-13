@@ -22,3 +22,11 @@ def test_normalize_stats():
 
     assert np.allclose(normalized.mean(axis=0), 0.0)
     assert np.allclose(normalized.std(axis=0), 1.0)
+
+
+def test_degenerate_bones_are_marked_invalid():
+    coords = np.zeros((2, len(JOINT_NAMES), 3), dtype=float)
+
+    angles = FeatureExtractor().compute_angles(coords)
+
+    assert np.isnan(angles).all()

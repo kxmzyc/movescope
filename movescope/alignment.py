@@ -73,9 +73,10 @@ class WeightedSegmentedDTWAligner(DTWAligner):
 
     def compute_joint_weights(self, template) -> np.ndarray:
         std = np.asarray(template.std, dtype=float)
+        if std.ndim != 1 or len(std) == 0 or not np.isfinite(std).all() or np.any(std < 0):
+            raise ValueError("template std must contain finite non-negative values")
         weights = 1.0 / (std + 1e-6)
-        total = weights.sum()
-        return weights / total if total > 0 else np.full_like(weights, 1.0 / len(weights))
+        return self._normalize_weights(weights, len(std))
 
     def detect_phases(self, feature_seq: np.ndarray, n_phases: int = 4) -> list[tuple[int, int]]:
         seq = np.asarray(feature_seq, dtype=float)
@@ -138,9 +139,7 @@ class WeightedSegmentedDTWAligner(DTWAligner):
     def weighted_dtw(self, query: np.ndarray, reference: np.ndarray, weights: np.ndarray) -> Path:
         query = np.asarray(query, dtype=float)
         reference = np.asarray(reference, dtype=float)
-        weights = np.asarray(weights, dtype=float)
-        if weights.ndim != 1 or weights.shape[0] != query.shape[1]:
-            raise ValueError("weights must match feature dimension")
+        weights = self._normalize_weights(weights, query.shape[1])
 
         base = DTWAligner()
         base.distance = lambda q, r: self.weighted_distance(q, r, weights)  # type: ignore[method-assign]
@@ -159,22 +158,39 @@ class WeightedSegmentedDTWAligner(DTWAligner):
             raise ValueError("query and reference must be 2D arrays")
         if query.shape[1] != reference.shape[1]:
             raise ValueError("query and reference feature dimensions must match")
+        if not np.isfinite(query).all() or not np.isfinite(reference).all():
+            raise ValueError("query and reference must contain only finite values")
 
-        weights = np.ones(query.shape[1], dtype=float) / query.shape[1] if weights is None else np.asarray(weights)
-        weights = weights / weights.sum()
+        default_weights = np.ones(query.shape[1], dtype=float) if weights is None else weights
+        weights = self._normalize_weights(default_weights, query.shape[1])
         if not use_segmented:
             return self.weighted_dtw(query, reference, weights)
 
         query_segments = self.detect_phases(query)
         ref_segments = self.detect_phases(reference)
-        n_segments = min(len(query_segments), len(ref_segments))
-        if n_segments == 0:
+        if not query_segments or not ref_segments:
             return []
+        if len(query_segments) != len(ref_segments):
+            return self.weighted_dtw(query, reference, weights)
 
         full_path: Path = []
-        for idx in range(n_segments):
+        for idx in range(len(query_segments)):
             q_start, q_end = query_segments[idx]
             r_start, r_end = ref_segments[idx]
             local_path = self.weighted_dtw(query[q_start:q_end], reference[r_start:r_end], weights)
             full_path.extend((q_start + i, r_start + j) for i, j in local_path)
+        if not full_path or full_path[0] != (0, 0) or full_path[-1] != (len(query) - 1, len(reference) - 1):
+            return self.weighted_dtw(query, reference, weights)
         return full_path
+
+    @staticmethod
+    def _normalize_weights(weights: np.ndarray, feature_dim: int) -> np.ndarray:
+        normalized = np.asarray(weights, dtype=float)
+        if normalized.ndim != 1 or normalized.shape[0] != feature_dim:
+            raise ValueError("weights must match feature dimension")
+        if not np.isfinite(normalized).all() or np.any(normalized < 0):
+            raise ValueError("weights must contain finite non-negative values")
+        total = float(normalized.sum())
+        if total <= 0:
+            raise ValueError("weights must have a positive sum")
+        return normalized / total

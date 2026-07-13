@@ -804,21 +804,21 @@ jupyter nbconvert --to notebook --execute notebooks/ablation_experiment.ipynb
 
 ### 保底交付（考研前必须完成）
 
-- [ ] 阶段 0：环境跑通，Hello World 输出骨架视频
-- [ ] 阶段 1.1-1.3：姿态提取 + 特征提取 + pytest 全过
-- [ ] 阶段 1.4：专家模板构建（需先下载视频）
-- [ ] 阶段 1.5：基线 DTW 评估，能区分好/坏动作
-- [ ] 阶段 1.6：Gradio demo 可在 localhost 演示
-- [ ] 阶段 2.1-2.2：加权分段 DTW + 细粒度诊断
-- [ ] 阶段 2.4：消融实验 notebook 有结果图表
+- [ ] 阶段 0：环境跑通，Hello World 输出骨架视频（脚本已实现；仍需真实视频跑出本地骨架视频）
+- [x] 阶段 1.1-1.3：姿态提取 + 特征提取 + pytest 全过
+- [ ] 阶段 1.4：专家模板构建（模板构建代码已实现；仍需下载/筛选专家视频后生成 `data/templates/squat.npz`）
+- [ ] 阶段 1.5：基线 DTW 评估，能区分好/坏动作（算法测试已通过；仍需真实 good/bad 视频验证分差）
+- [ ] 阶段 1.6：Gradio demo 可在 localhost 演示（Demo 已实现；仍需模板和真实视频完成端到端演示）
+- [x] 阶段 2.1-2.2：加权分段 DTW + 细粒度诊断
+- [ ] 阶段 2.4：消融实验 notebook 有结果图表（notebook/helper 已实现；仍需本地数据生成图表）
 
 ### 作品集目标（考研后推进）
 
-- [ ] 阶段 2.3：GPT 建议接入
-- [ ] 阶段 2.5：视角鲁棒实验
-- [ ] 阶段 3.1：React 前端
-- [ ] 阶段 3.3：GitHub 开源发布
-- [ ] 阶段 3.4：毕设论文草稿
+- [x] 阶段 2.3：GPT 建议接入（含无 API key fallback）
+- [ ] 阶段 2.5：视角鲁棒实验（notebook/helper 已实现；仍需多角度自录数据）
+- [x] 阶段 3.1：React 前端
+- [ ] 阶段 3.3：GitHub 开源发布（README/LICENSE/CITATION/CI 已准备；仍需确认提交和发布）
+- [x] 阶段 3.4：毕设论文草稿
 
 ---
 

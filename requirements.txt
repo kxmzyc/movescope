@@ -1,7 +1,6 @@
 mediapipe==0.10.14
 opencv-python==4.10.0.84
 numpy==1.26.4
-scipy==1.13.1
 fastapi==0.111.0
 pydantic==2.9.2
 uvicorn==0.30.1
@@ -9,5 +8,5 @@ gradio==4.44.1
 huggingface-hub==0.25.2
 websockets==12.0
 yt-dlp==2024.7.9
-pytest==8.2.2
-torch==2.3.1
+pandas==2.2.2
+python-multipart==0.0.9

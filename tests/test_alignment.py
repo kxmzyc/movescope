@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from movescope.alignment import DTWAligner, WeightedSegmentedDTWAligner
 
@@ -56,3 +57,27 @@ def test_compute_joint_weights_prefers_low_variance_features():
 
     assert np.isclose(weights.sum(), 1.0)
     assert weights[0] > weights[1]
+
+
+def test_segment_count_mismatch_falls_back_to_complete_alignment():
+    class MismatchedSegmentsAligner(WeightedSegmentedDTWAligner):
+        def detect_phases(self, feature_seq, n_phases=4):
+            if len(feature_seq) == 6:
+                return [(0, 3), (3, 6)]
+            return [(0, len(feature_seq))]
+
+    query = np.arange(12, dtype=float).reshape(6, 2)
+    reference = np.arange(16, dtype=float).reshape(8, 2)
+
+    path = MismatchedSegmentsAligner().align(query, reference)
+
+    assert path[0] == (0, 0)
+    assert path[-1] == (5, 7)
+
+
+@pytest.mark.parametrize("weights", [np.zeros(2), np.array([1.0, -1.0])])
+def test_invalid_weights_are_rejected(weights):
+    seq = np.arange(8, dtype=float).reshape(4, 2)
+
+    with pytest.raises(ValueError, match="weights"):
+        WeightedSegmentedDTWAligner().align(seq, seq, weights=weights)

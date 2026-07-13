@@ -1,4 +1,4 @@
-"""Search or download exercise videos via yt-dlp."""
+"""Search or download authorized exercise videos via yt-dlp."""
 
 from __future__ import annotations
 
@@ -6,6 +6,10 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 SEARCH_TERMS = {
@@ -24,7 +28,10 @@ VIDEO_EXTENSIONS = (".mp4", ".webm", ".mkv", ".mov")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog="Use only videos you own or are authorized to download and process.",
+    )
     parser.add_argument("--action", default="squat", help="Action name, for example: squat")
     parser.add_argument("--mode", choices=["expert", "test"], required=True)
     parser.add_argument("--n", type=int, default=3, help="Number of results per search term")

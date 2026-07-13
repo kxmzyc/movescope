@@ -26,6 +26,18 @@ class AssessmentEngine:
         test_features = self.feature_extractor.extract(test_coords_3d, normalize=False)
         reference = np.asarray(self.template.representative_seq, dtype=float)
         tolerance = np.asarray(self.template.tolerance, dtype=float)
+        if test_features.ndim != 2 or reference.ndim != 2 or len(test_features) == 0 or len(reference) == 0:
+            raise ValueError("test and reference features must be non-empty 2D arrays")
+        if test_features.shape[1] != reference.shape[1]:
+            raise ValueError("test and reference feature dimensions must match")
+        if tolerance.shape != (test_features.shape[1],):
+            raise ValueError("template tolerance must match the feature dimension")
+        if not np.isfinite(test_features).all() or not np.isfinite(reference).all():
+            raise ValueError("test and reference features must contain only finite values")
+        if not np.isfinite(tolerance).all() or np.any(tolerance <= 0):
+            raise ValueError("template tolerance must contain positive finite values")
+        if not np.isfinite(self.fps) or self.fps <= 0:
+            raise ValueError("fps must be a positive finite value")
 
         weights = None
         if hasattr(self.aligner, "compute_joint_weights"):

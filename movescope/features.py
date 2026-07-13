@@ -68,8 +68,14 @@ class FeatureExtractor:
             v1 = a - b
             v2 = c - b
             denom = np.linalg.norm(v1, axis=1) * np.linalg.norm(v2, axis=1)
-            denom = np.where(denom == 0.0, 1.0, denom)
-            cos_angle = np.sum(v1 * v2, axis=1) / denom
+            valid = np.isfinite(denom) & (denom > 1e-8)
+            cos_angle = np.full(coords.shape[0], np.nan, dtype=float)
+            np.divide(
+                np.sum(v1 * v2, axis=1),
+                denom,
+                out=cos_angle,
+                where=valid,
+            )
             angles[:, feature_idx] = np.degrees(np.arccos(np.clip(cos_angle, -1.0, 1.0)))
         return angles
 

@@ -168,7 +168,7 @@ class PoseExtractor:
             good = confidence[:, joint_idx] >= self.min_confidence
             if not good.any():
                 print(f"WARNING: no reliable frames for joint {JOINT_NAMES[joint_idx]}")
-                filled[:, joint_idx, :] = np.nan_to_num(filled[:, joint_idx, :])
+                filled[:, joint_idx, :] = np.nan
                 continue
             good_indices = np.where(good)[0]
             for dim in range(coords.shape[2]):

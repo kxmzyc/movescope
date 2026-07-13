@@ -3,6 +3,20 @@ import sys
 
 import numpy as np
 
+from scripts import fetch_videos
+
+
+def test_fetch_videos_dry_run_handles_unprintable_error(monkeypatch, capsys):
+    def fake_run_yt_dlp(args):
+        return subprocess.CompletedProcess(args, 1, stdout="", stderr="bad char: \ufffd")
+
+    monkeypatch.setattr(fetch_videos, "run_yt_dlp", fake_run_yt_dlp)
+
+    ok, bad = fetch_videos.dry_run("标准深蹲教学", 1)
+
+    assert (ok, bad) == (0, 1)
+    assert "[failed]" in capsys.readouterr().out
+
 
 def test_feature_template_assessment_cli(tmp_path):
     features_dir = tmp_path / "features"
@@ -26,6 +40,8 @@ def test_feature_template_assessment_cli(tmp_path):
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     assert build.returncode == 0, build.stderr
@@ -44,6 +60,8 @@ def test_feature_template_assessment_cli(tmp_path):
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     assert assess.returncode == 0, assess.stderr

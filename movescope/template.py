@@ -9,6 +9,7 @@ import numpy as np
 
 
 DEFAULT_K = 1.5
+MIN_TOLERANCE_DEG = 5.0
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".webm", ".mkv"}
 
 
@@ -40,17 +41,34 @@ class ActionTemplate:
 
         self.build_from_features(feature_sequences, k=k)
 
-    def build_from_features(self, feature_sequences: list[np.ndarray], k: float = DEFAULT_K) -> None:
+    def build_from_features(
+        self,
+        feature_sequences: list[np.ndarray],
+        k: float = DEFAULT_K,
+        min_tolerance_deg: float = MIN_TOLERANCE_DEG,
+    ) -> None:
         if not feature_sequences:
             raise ValueError("feature_sequences cannot be empty")
+        if min_tolerance_deg <= 0 or not np.isfinite(min_tolerance_deg):
+            raise ValueError("min_tolerance_deg must be a positive finite value")
 
-        vectors = np.vstack([np.asarray(seq, dtype=float).mean(axis=0) for seq in feature_sequences])
+        sequences = [np.asarray(seq, dtype=float) for seq in feature_sequences]
+        feature_dim = sequences[0].shape[1] if sequences[0].ndim == 2 else None
+        for sequence in sequences:
+            if sequence.ndim != 2 or len(sequence) == 0:
+                raise ValueError("each feature sequence must be a non-empty 2D array")
+            if sequence.shape[1] != feature_dim:
+                raise ValueError("all feature sequences must use the same feature dimension")
+            if not np.isfinite(sequence).all():
+                raise ValueError("feature sequences must contain only finite values")
+
+        vectors = np.vstack([sequence.mean(axis=0) for sequence in sequences])
         self.mean = vectors.mean(axis=0)
         self.std = vectors.std(axis=0)
-        self.tolerance = np.maximum(self.std * k, 1e-6)
+        self.tolerance = np.maximum(self.std * k, min_tolerance_deg)
         distances = np.linalg.norm(vectors - self.mean[None, :], axis=1)
-        self.representative_seq = np.asarray(feature_sequences[int(np.argmin(distances))], dtype=float)
-        self.n_videos = len(feature_sequences)
+        self.representative_seq = sequences[int(np.argmin(distances))]
+        self.n_videos = len(sequences)
 
     def save(self, output_path: str | Path | None = None) -> Path:
         if self.mean is None or self.std is None or self.tolerance is None or self.representative_seq is None:
@@ -78,7 +96,7 @@ class ActionTemplate:
             action_name=str(data["action_name"]),
             mean=data["mean"],
             std=data["std"],
-            tolerance=data["tolerance"],
+            tolerance=np.maximum(data["tolerance"], MIN_TOLERANCE_DEG),
             representative_seq=data["representative_seq"],
             n_videos=int(data["n_videos"]),
         )

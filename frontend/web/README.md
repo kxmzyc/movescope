@@ -1,20 +1,22 @@
 # MoveScope Web
 
-React/Vite frontend for the MoveScope assessment API.
+React/Vite workspace for the MoveScope FastAPI service.
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-The app expects the FastAPI backend at `http://127.0.0.1:8000`. Override with:
+The default API is `http://127.0.0.1:8000`. Override it before starting Vite when needed:
 
-```bash
-set VITE_MOVESCOPE_API=http://127.0.0.1:8000
+```powershell
+$env:VITE_MOVESCOPE_API="http://127.0.0.1:8000"
 npm run dev
 ```
 
-Build check:
+The UI discovers templates through `/actions`, runs a clearly labeled deterministic result through `/demo`, submits real videos through `/assess`, and exports returned diagnoses as JSON.
+
+Checks:
 
 ```bash
 npm run build

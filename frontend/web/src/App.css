@@ -23,7 +23,7 @@
   color: #7d3b2f;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -41,7 +41,8 @@ h2 {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -84,6 +85,9 @@ button:disabled {
 .panelTitle svg,
 .statusButton svg,
 .primary svg,
+.secondary svg,
+.iconCommand svg,
+.templateNotice svg,
 .hint svg,
 .alert svg {
   width: 18px;
@@ -141,7 +145,8 @@ button:disabled {
   font-weight: 700;
 }
 
-.field input {
+.field input,
+.field select {
   min-height: 42px;
   border: 1px solid #d8d1c7;
   border-radius: 6px;
@@ -151,6 +156,7 @@ button:disabled {
 }
 
 .primary,
+.secondary,
 .statusButton {
   display: inline-flex;
   align-items: center;
@@ -167,6 +173,20 @@ button:disabled {
   margin: 0 14px 14px;
   background: #b94331;
   color: #fff;
+}
+
+.secondary {
+  width: calc(100% - 28px);
+  margin: 0 14px 14px;
+  border-color: #c9c0b4;
+  background: #ffffff;
+  color: #26333d;
+}
+
+.secondary:hover:not(:disabled),
+.iconCommand:hover {
+  border-color: #9f5a4d;
+  color: #8f3427;
 }
 
 .statusButton {
@@ -186,6 +206,19 @@ button:disabled {
   color: #65707a;
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.templateNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 14px 14px;
+  padding: 10px;
+  border-left: 3px solid #d19039;
+  background: #fff7e8;
+  color: #76511e;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .videoPanel {
@@ -223,6 +256,16 @@ button:disabled {
   height: 38px;
 }
 
+.demoVisual strong {
+  color: #dbe6df;
+  font-size: 15px;
+}
+
+.demoVisual span {
+  color: #8da098;
+  font-size: 12px;
+}
+
 .alert {
   display: flex;
   align-items: flex-start;
@@ -250,6 +293,12 @@ button:disabled {
   letter-spacing: 0;
 }
 
+.scoreUnit {
+  margin-left: 6px;
+  color: #7d8791;
+  font-size: 13px;
+}
+
 .scoreBadge {
   width: 48px;
   height: 48px;
@@ -268,6 +317,42 @@ button:disabled {
 .scoreBadge svg {
   width: 24px;
   height: 24px;
+}
+
+.resultMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: -2px 14px 12px;
+}
+
+.sourceBadge {
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #e8f3e7;
+  color: #287044;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.sourceBadge.synthetic {
+  background: #fff0df;
+  color: #8a4b20;
+}
+
+.iconCommand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid #d7d0c7;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #4c5863;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .chartBox {
@@ -303,6 +388,16 @@ button:disabled {
   font-size: 13px;
 }
 
+.summary li > span {
+  display: grid;
+  gap: 2px;
+}
+
+.summary li small {
+  color: #858e96;
+  font-size: 10px;
+}
+
 .summary p,
 .advice p {
   margin: 0;
@@ -310,6 +405,16 @@ button:disabled {
   font-size: 13px;
   line-height: 1.5;
   white-space: pre-line;
+}
+
+.disclaimer {
+  display: block;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ded7cd;
+  color: #7b6b5f;
+  font-size: 10px;
+  line-height: 1.45;
 }
 
 .spin {

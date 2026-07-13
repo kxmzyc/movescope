@@ -1,18 +1,21 @@
-# MotionBERT Setup
+# MotionBERT Integration Status
 
-MoveScope can run without MotionBERT weights by falling back to MediaPipe world landmarks as pseudo-3D coordinates. To complete the optional MotionBERT-Lite path from the implementation plan, install the upstream repository and checkpoint manually:
+MoveScope v0.2.0 does not implement a MotionBERT inference adapter.
 
-```bash
-git clone --depth 1 https://github.com/Walter0807/MotionBERT.git lib/MotionBERT
-python -c "from lib import *; print('MotionBERT path ok')"
-```
+The default and tested path uses MediaPipe world landmarks as pseudo-3D coordinates. `PoseExtractor.lift_to_3d()` intentionally raises `NotImplementedError` even if a checkpoint exists, because MotionBERT releases expose different model entry points and preprocessing contracts. A checkpoint alone does not enable true 3D lifting.
 
-Then download the pretrained MotionBERT checkpoint referenced by the upstream project page or README and place it at:
+The reserved local path is:
 
 ```text
 lib/MotionBERT/checkpoint/motionbert_lite.bin
 ```
 
-Local attempts to clone the repository can fail on restricted networks. In that case, download the repository archive in a browser, extract it to `lib/MotionBERT`, then place the checkpoint at the path above.
+`lib/MotionBERT/` is git-ignored. To complete this integration in a future release, the adapter must:
 
-After the checkpoint exists, `PoseExtractor.extract()` will expose the `coords_3d` field for the true lifting backend. Until then, `coords_3d` is `None` and downstream code uses `coords_3d_pseudo`.
+1. Pin an upstream MotionBERT commit and checkpoint.
+2. Convert MoveScope's normalized 2D sequence to the upstream input contract.
+3. Map the lifted output back to MoveScope's custom 17-joint order.
+4. Add deterministic shape, finite-value, and real-video regression tests.
+5. Document checkpoint provenance and licensing.
+
+Until those requirements are met, public output and documentation must describe the active representation as MediaPipe world-landmark pseudo-3D.

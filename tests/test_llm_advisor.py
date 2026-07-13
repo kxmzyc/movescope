@@ -35,3 +35,17 @@ def test_output_not_medical(monkeypatch):
 
     forbidden = ["诊断", "治疗", "病"]
     assert not any(word in advice for word in forbidden)
+
+
+def test_synthetic_path_never_calls_remote_provider(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "configured-but-not-used")
+    advisor = LLMAdvisor()
+    monkeypatch.setattr(
+        advisor,
+        "_openai_advice",
+        lambda _diagnosis: (_ for _ in ()).throw(AssertionError("remote provider called")),
+    )
+
+    advice = advisor.generate_advice(make_diagnosis(), allow_remote=False)
+
+    assert "left knee" in advice

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -75,8 +77,7 @@ def assess_video(video_path: str | None, action: str = "squat") -> tuple[str | N
 def render_overlay(video_path: str, pose: dict[str, Any], result: dict[str, Any]) -> str:
     import cv2
 
-    output_path = Path("data/test/viz_output.mp4")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path = Path(tempfile.gettempdir()) / f"movescope_overlay_{uuid.uuid4().hex}.mp4"
 
     capture = cv2.VideoCapture(video_path)
     if not capture.isOpened():
@@ -91,6 +92,9 @@ def render_overlay(video_path: str, pose: dict[str, Any], result: dict[str, Any]
         fps,
         (width, height),
     )
+    if not writer.isOpened():
+        capture.release()
+        raise RuntimeError("Could not create the overlay video writer.")
 
     coords_2d = pose["coords_2d"]
     confidence = pose["confidence"]

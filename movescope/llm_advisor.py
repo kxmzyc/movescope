@@ -27,8 +27,8 @@ class LLMAdvisor:
 
     model: str = "gpt-4o"
 
-    def generate_advice(self, diagnosis: dict[str, Any]) -> str:
-        if not os.getenv("OPENAI_API_KEY"):
+    def generate_advice(self, diagnosis: dict[str, Any], *, allow_remote: bool = True) -> str:
+        if not allow_remote or not os.getenv("OPENAI_API_KEY"):
             return self._fallback_advice(diagnosis)
 
         try:

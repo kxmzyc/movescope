@@ -1,12 +1,15 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import {
   Activity,
   AlertCircle,
   BarChart3,
   CheckCircle2,
+  Download,
   FileVideo,
+  FlaskConical,
   Loader2,
+  RefreshCw,
   Server,
   Upload,
 } from 'lucide-react'
@@ -46,6 +49,18 @@ type Diagnosis = {
   phases: DiagnosisPhase[]
   per_joint_summary: JointSummary
   llm_advice?: string
+  metadata?: {
+    source: string
+    label: string
+    disclaimer: string
+    frames: number
+  }
+  quality?: {
+    frames: number
+    fps: number
+    valid_pose_ratio: number
+    pose_source: string
+  }
 }
 
 type Health = {
@@ -54,6 +69,8 @@ type Health = {
 }
 
 const API_BASE = import.meta.env.VITE_MOVESCOPE_API ?? 'http://127.0.0.1:8000'
+const MAX_VIDEO_BYTES = 100 * 1024 * 1024
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.webm', '.mkv']
 
 function App() {
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -62,7 +79,8 @@ function App() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null)
   const [health, setHealth] = useState<Health | null>(null)
-  const [status, setStatus] = useState<'idle' | 'checking' | 'uploading'>('idle')
+  const [availableActions, setAvailableActions] = useState<string[]>([])
+  const [status, setStatus] = useState<'idle' | 'checking' | 'uploading' | 'demo'>('checking')
   const [error, setError] = useState<string | null>(null)
 
   const jointRows = useMemo(() => {
@@ -78,26 +96,50 @@ function App() {
   }, [diagnosis])
 
   const topAnomalies = useMemo(() => {
-    return diagnosis?.phases.flatMap((phase) =>
-      phase.anomalies.map((anomaly) => ({ ...anomaly, phase })),
-    ) ?? []
+    return (
+      diagnosis?.phases
+        .flatMap((phase) => phase.anomalies.map((anomaly) => ({ ...anomaly, phase })))
+        .sort((a, b) => b.mean_deviation_deg - a.mean_deviation_deg) ?? []
+    )
   }, [diagnosis])
 
-  async function checkApi() {
+  const checkApi = useCallback(async () => {
     setStatus('checking')
     setError(null)
     try {
-      const response = await axios.get<Health>(`${API_BASE}/health`, { timeout: 5000 })
-      setHealth(response.data)
+      const [healthResponse, actionsResponse] = await Promise.all([
+        axios.get<Health>(`${API_BASE}/health`, { timeout: 5000 }),
+        axios.get<{ actions: string[] }>(`${API_BASE}/actions`, { timeout: 5000 }),
+      ])
+      setHealth(healthResponse.data)
+      setAvailableActions(actionsResponse.data.actions)
+      setAction((current) =>
+        actionsResponse.data.actions.length && !actionsResponse.data.actions.includes(current)
+          ? actionsResponse.data.actions[0]
+          : current,
+      )
     } catch (err) {
       setError(readError(err, 'API is not reachable. Start FastAPI on port 8000.'))
       setHealth(null)
+      setAvailableActions([])
     } finally {
       setStatus('idle')
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void checkApi()
+  }, [checkApi])
 
   function selectFile(nextFile: File | null) {
+    if (nextFile && !isSupportedVideo(nextFile)) {
+      setError('Use an MP4, MOV, AVI, WEBM, or MKV video file.')
+      return
+    }
+    if (nextFile && nextFile.size > MAX_VIDEO_BYTES) {
+      setError('Video exceeds the 100 MB upload limit.')
+      return
+    }
     setFile(nextFile)
     setDiagnosis(null)
     setError(null)
@@ -121,7 +163,6 @@ function App() {
     try {
       const response = await axios.post<Diagnosis>(`${API_BASE}/assess`, body, {
         timeout: 300_000,
-        headers: { 'Content-Type': 'multipart/form-data' },
       })
       setDiagnosis(response.data)
     } catch (err) {
@@ -129,6 +170,34 @@ function App() {
     } finally {
       setStatus('idle')
     }
+  }
+
+  async function runDemo() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setFile(null)
+    setPreviewUrl(null)
+    setStatus('demo')
+    setError(null)
+    setDiagnosis(null)
+    try {
+      const response = await axios.get<Diagnosis>(`${API_BASE}/demo`, { timeout: 15_000 })
+      setDiagnosis(response.data)
+    } catch (err) {
+      setError(readError(err, 'Synthetic demo failed. Check the API connection.'))
+    } finally {
+      setStatus('idle')
+    }
+  }
+
+  function downloadReport() {
+    if (!diagnosis) return
+    const blob = new Blob([JSON.stringify(diagnosis, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `movescope-${diagnosis.action}-report.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
   }
 
   const busy = status !== 'idle'
@@ -141,8 +210,8 @@ function App() {
           <h1>Monocular squat assessment console</h1>
         </div>
         <button className="statusButton" type="button" onClick={checkApi} disabled={busy}>
-          {status === 'checking' ? <Loader2 className="spin" /> : <Server />}
-          {health ? `API ${health.version}` : 'Check API'}
+          {status === 'checking' ? <Loader2 className="spin" /> : health ? <CheckCircle2 /> : <RefreshCw />}
+          {health ? `API ${health.version} ready` : 'Check API'}
         </button>
       </header>
 
@@ -178,17 +247,35 @@ function App() {
 
           <label className="field">
             <span>Action</span>
-            <input value={action} onChange={(event) => setAction(event.target.value)} />
+            <select value={action} onChange={(event) => setAction(event.target.value)}>
+              {(availableActions.length ? availableActions : ['squat']).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
           </label>
+
+          {!availableActions.length && health && (
+            <div className="templateNotice">
+              <AlertCircle />
+              <span>No local template found. Build one for video assessment, or run the synthetic demo.</span>
+            </div>
+          )}
 
           <button className="primary" type="button" disabled={busy || !file} onClick={submitAssessment}>
             {status === 'uploading' ? <Loader2 className="spin" /> : <Activity />}
             Run assessment
           </button>
 
+          <button className="secondary" type="button" disabled={busy || !health} onClick={runDemo}>
+            {status === 'demo' ? <Loader2 className="spin" /> : <FlaskConical />}
+            Run synthetic demo
+          </button>
+
           <div className="hint">
             <Server />
-            <span>{API_BASE}</span>
+            <span>{health ? `${API_BASE} · connected` : API_BASE}</span>
           </div>
         </aside>
 
@@ -200,6 +287,12 @@ function App() {
           <div className="videoFrame">
             {previewUrl ? (
               <video src={previewUrl} controls />
+            ) : diagnosis?.metadata?.source === 'synthetic' ? (
+              <div className="emptyVideo demoVisual">
+                <FlaskConical />
+                <strong>Synthetic angle sequence</strong>
+                <span>Deterministic 72-frame squat diagnostic</span>
+              </div>
             ) : (
               <div className="emptyVideo">
                 <FileVideo />
@@ -208,7 +301,7 @@ function App() {
             )}
           </div>
           {error && (
-            <div className="alert">
+            <div className="alert" role="alert" aria-live="polite">
               <AlertCircle />
               <span>{error}</span>
             </div>
@@ -220,18 +313,31 @@ function App() {
             <div>
               <p className="eyebrow">Score</p>
               <strong>{diagnosis ? diagnosis.total_score.toFixed(1) : '--'}</strong>
+              <span className="scoreUnit">/ 100</span>
             </div>
             <div className={diagnosis ? 'scoreBadge active' : 'scoreBadge'}>
               {diagnosis ? <CheckCircle2 /> : <BarChart3 />}
             </div>
           </div>
 
+          {diagnosis && (
+            <div className="resultMeta">
+              <span className={diagnosis.metadata ? 'sourceBadge synthetic' : 'sourceBadge'}>
+                {diagnosis.metadata ? 'Synthetic verification' : 'Uploaded video'}
+              </span>
+              <button className="iconCommand" type="button" onClick={downloadReport} title="Download JSON report">
+                <Download />
+                Export JSON
+              </button>
+            </div>
+          )}
+
           <div className="chartBox">
             {jointRows.length ? (
               <ResponsiveContainer width="100%" height={230}>
                 <BarChart data={jointRows} layout="vertical" margin={{ left: 8, right: 12, top: 8, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#d7dbe2" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} stroke="#68707d" />
+                  <XAxis type="number" unit="°" tick={{ fontSize: 11 }} stroke="#68707d" />
                   <YAxis dataKey="name" type="category" width={86} tick={{ fontSize: 11 }} stroke="#68707d" />
                   <Tooltip cursor={{ fill: '#eef2f6' }} />
                   <Bar dataKey="meanDev" fill="#c14835" radius={[0, 4, 4, 0]} />
@@ -248,7 +354,12 @@ function App() {
               <ul>
                 {topAnomalies.slice(0, 4).map((item) => (
                   <li key={`${item.phase.name}-${item.joint_idx}`}>
-                    <span>{jointLabel(item.joint_name)}</span>
+                    <span>
+                      {jointLabel(item.joint_name)}
+                      <small>
+                        {item.peak_time_sec.toFixed(2)} s peak · {(item.anomaly_ratio * 100).toFixed(0)}% anomalous
+                      </small>
+                    </span>
                     <strong>{item.mean_deviation_deg.toFixed(1)} deg</strong>
                   </li>
                 ))}
@@ -261,6 +372,7 @@ function App() {
           <section className="advice">
             <h2>Advice</h2>
             <p>{diagnosis?.llm_advice ?? 'Correction advice will appear after the backend returns a diagnosis.'}</p>
+            {diagnosis?.metadata && <small className="disclaimer">{diagnosis.metadata.disclaimer}</small>}
           </section>
         </aside>
       </section>
@@ -270,6 +382,11 @@ function App() {
 
 function jointLabel(name: string) {
   return name.split(':', 1)[0].replaceAll('_', ' ')
+}
+
+function isSupportedVideo(file: File) {
+  const lowerName = file.name.toLowerCase()
+  return file.type.startsWith('video/') || VIDEO_EXTENSIONS.some((extension) => lowerName.endsWith(extension))
 }
 
 function readError(err: unknown, fallback: string) {
