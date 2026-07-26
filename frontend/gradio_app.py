@@ -8,30 +8,16 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from movescope.advice import OpenAIAdvisor
+from movescope.advice import generate_advice
 from movescope.alignment import WeightedSegmentedDTWAligner
 from movescope.assessment import AssessmentEngine
-from movescope.features import JOINT_NAMES, FeatureExtractor
+from movescope.config import Settings
+from movescope.constants import SKELETON_EDGES
+from movescope.features import CORE_FEATURE_INDICES, JOINT_NAMES, FeatureExtractor
 from movescope.pose_extractor import PoseExtractor
 from movescope.reporting import generate_text_summary
 from movescope.template import ActionTemplate
 from movescope.types import PoseResult
-
-SKELETON_EDGES = [
-    ("pelvis", "left_hip"),
-    ("pelvis", "right_hip"),
-    ("left_hip", "left_knee"),
-    ("left_knee", "left_ankle"),
-    ("right_hip", "right_knee"),
-    ("right_knee", "right_ankle"),
-    ("neck", "left_shoulder"),
-    ("neck", "right_shoulder"),
-    ("left_shoulder", "left_elbow"),
-    ("left_elbow", "left_wrist"),
-    ("right_shoulder", "right_elbow"),
-    ("right_elbow", "right_wrist"),
-    ("neck", "head"),
-]
 
 
 def assess_video(video_path: str | None, action: str = "squat") -> tuple[str | None, float, Any, str]:
@@ -45,20 +31,28 @@ def assess_video(video_path: str | None, action: str = "squat") -> tuple[str | N
             None,
             0.0,
             _empty_bar_data(),
-            f"未找到动作“{action}”的模板，请先运行 scripts/build_template.py。",
+            f"未找到动作“{action}”的模板，请先运行 movescope-build-template。",
         )
 
     try:
+        settings = Settings.from_env()
         pose = PoseExtractor().extract(video_path)
         engine = AssessmentEngine(
             template=template,
             aligner=WeightedSegmentedDTWAligner(),
             feature_extractor=FeatureExtractor(),
+            required_features=CORE_FEATURE_INDICES,
         )
         result = engine.assess_pose(pose)
-        advice = OpenAIAdvisor().generate_advice(result)
+        advice, _source = generate_advice(
+            result,
+            provider=settings.advice_provider,
+            model=settings.openai_model,
+            timeout_sec=settings.openai_timeout_sec,
+        )
         overlay_path = render_overlay(video_path, pose, result)
-        text = f"{generate_text_summary(result)}\n\n纠错建议：\n{advice}"
+        advice_text = advice or "（建议生成已关闭）"
+        text = f"{generate_text_summary(result)}\n\n纠错建议：\n{advice_text}"
         return overlay_path, float(result["total_score"]), _bar_data(result), text
     except Exception as exc:
         return None, 0.0, _empty_bar_data(), f"评估失败：{exc}"

@@ -34,6 +34,7 @@ def generate_synthetic_demo() -> dict:
     engine = AssessmentEngine(template=template, aligner=WeightedSegmentedDTWAligner(), fps=30.0)
     result = engine.assess_features(test)
     result["llm_advice"] = RuleBasedAdvisor().generate_advice(result)
+    result["advice_source"] = "rule"
     result["metadata"] = {
         "source": "synthetic",
         "label": "确定性深蹲关节角演示",

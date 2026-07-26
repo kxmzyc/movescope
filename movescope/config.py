@@ -17,6 +17,10 @@ DEFAULT_CORS_ORIGINS = (
 )
 LOCAL_CORS_ORIGIN_REGEX = r"^http://(localhost|127\.0\.0\.1):\d+$"
 
+# 建议来源："off" 不生成建议；"rule" 本地规则；"openai" 远程模型
+# （失败时回退本地规则）。默认本地规则：诊断数据是否外发必须显式选择。
+ADVICE_PROVIDERS = ("off", "rule", "openai")
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -26,6 +30,10 @@ class Settings:
     cors_origin_regex: str = LOCAL_CORS_ORIGIN_REGEX
     assess_timeout_sec: float = 300.0
     upload_chunk_bytes: int = 1024 * 1024
+    max_concurrent_assess: int = 2
+    advice_provider: str = "rule"
+    openai_model: str = "gpt-4o"
+    openai_timeout_sec: float = 20.0
 
     @property
     def templates_dir(self) -> Path:
@@ -41,8 +49,21 @@ class Settings:
         max_upload_mb = max(1, int(os.getenv("MOVESCOPE_MAX_UPLOAD_MB", "100")))
         raw_origins = os.getenv("MOVESCOPE_CORS_ORIGINS", "")
         origins = tuple(item.strip() for item in raw_origins.split(",") if item.strip()) or DEFAULT_CORS_ORIGINS
+        cors_origin_regex = os.getenv("MOVESCOPE_CORS_ORIGIN_REGEX", LOCAL_CORS_ORIGIN_REGEX)
+        assess_timeout_sec = max(1.0, float(os.getenv("MOVESCOPE_ASSESS_TIMEOUT_SEC", "300")))
+        max_concurrent_assess = max(1, int(os.getenv("MOVESCOPE_MAX_CONCURRENT_ASSESS", "2")))
+        advice_provider = os.getenv("MOVESCOPE_ADVICE_PROVIDER", "rule").strip().lower()
+        if advice_provider not in ADVICE_PROVIDERS:
+            supported = "、".join(ADVICE_PROVIDERS)
+            raise ValueError(f"MOVESCOPE_ADVICE_PROVIDER 只支持 {supported}，当前为：{advice_provider}")
         return cls(
             data_dir=data_dir,
             max_upload_mb=max_upload_mb,
             cors_origins=origins,
+            cors_origin_regex=cors_origin_regex,
+            assess_timeout_sec=assess_timeout_sec,
+            max_concurrent_assess=max_concurrent_assess,
+            advice_provider=advice_provider,
+            openai_model=os.getenv("MOVESCOPE_OPENAI_MODEL", "gpt-4o"),
+            openai_timeout_sec=max(1.0, float(os.getenv("MOVESCOPE_OPENAI_TIMEOUT_SEC", "20"))),
         )

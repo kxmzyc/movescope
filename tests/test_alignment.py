@@ -61,6 +61,27 @@ def test_compute_joint_weights_prefers_low_variance_features():
     assert weights[0] > weights[1]
 
 
+def test_compute_joint_weights_clamps_extreme_ratio():
+    """小样本模板中 std 趋近于零时，1/std 权重不能让单特征主导评估。"""
+
+    class Template:
+        std = np.array([0.0, 1.0, 1.0])
+
+    weights = WeightedSegmentedDTWAligner(max_weight_ratio=20.0).compute_joint_weights(Template())
+
+    assert np.isclose(weights.sum(), 1.0)
+    assert weights.max() / weights.min() <= 20.0 + 1e-9
+    assert weights[0] > weights[1]
+
+
+def test_compute_joint_weights_rejects_invalid_ratio():
+    class Template:
+        std = np.array([1.0, 1.0])
+
+    with pytest.raises(ValueError, match="max_weight_ratio"):
+        WeightedSegmentedDTWAligner(max_weight_ratio=0.5).compute_joint_weights(Template())
+
+
 def test_segment_count_mismatch_falls_back_to_complete_alignment():
     class MismatchedSegmentsAligner(WeightedSegmentedDTWAligner):
         def detect_phases(self, feature_seq, n_phases=4):

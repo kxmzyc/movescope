@@ -61,6 +61,10 @@ JOINT_TRIPLETS = [
     ("pelvis", "right_hip", "right_knee"),
 ]
 
+# 深蹲评估的核心特征（双膝、双髋屈曲角，即 JOINT_TRIPLETS 前四项）。
+# 这些特征列数据不完整时评估结果不可信，评估链路应直接拒绝而不是降级。
+CORE_FEATURE_INDICES: tuple[int, ...] = (0, 1, 2, 3)
+
 
 @dataclass(frozen=True)
 class AngleFeature:

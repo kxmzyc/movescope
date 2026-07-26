@@ -11,6 +11,8 @@ export function actionLabel(name: string) {
 }
 
 export function isSupportedVideo(file: File, allowedExtensions: string[]) {
+  // 服务端只按扩展名白名单校验；MIME 是 video/* 但扩展名不在白名单的
+  // 文件（如 .flv）传完才会被 415 拒绝，客户端提前用同一标准拦下。
   const lowerName = file.name.toLowerCase()
-  return file.type.startsWith('video/') || allowedExtensions.some((extension) => lowerName.endsWith(extension))
+  return allowedExtensions.some((extension) => lowerName.endsWith(extension.toLowerCase()))
 }

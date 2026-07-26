@@ -15,8 +15,16 @@ class HealthResponse(BaseModel):
     allowed_extensions: list[str]
 
 
+class TemplateInfoModel(BaseModel):
+    action: str
+    n_videos: int
+    feature_dim: int
+    frames: int
+
+
 class ActionsResponse(BaseModel):
     actions: list[str]
+    templates: list[TemplateInfoModel] = Field(default_factory=list)
 
 
 class AnomalyModel(BaseModel):
@@ -48,6 +56,48 @@ class FeatureSummaryModel(BaseModel):
     child: str
     mean_dev: float
     anomaly_ratio: float
+    tolerance_deg: float
+    score_weight: float
+
+
+class ExcludedFeatureModel(BaseModel):
+    feature_index: int
+    joint: str
+    joint_display: str
+    parent: str
+    child: str
+    reason: str
+
+
+class TimelineSeriesModel(BaseModel):
+    feature_index: int
+    joint: str
+    joint_display: str
+    parent: str
+    child: str
+    tolerance_deg: float
+    test_deg: list[float]
+    reference_deg: list[float]
+    anomaly: list[bool]
+
+
+class TimelineModel(BaseModel):
+    fps: float
+    frame_count: int
+    frame_stride: int
+    time_sec: list[float]
+    series: list[TimelineSeriesModel]
+
+
+class SkeletonModel(BaseModel):
+    fps: float
+    frame_count: int
+    frame_stride: int
+    time_sec: list[float]
+    joint_names: list[str]
+    edges: list[list[int]]
+    keypoints: list[list[list[float] | None]]
+    confidence: list[list[float]]
 
 
 class QualityModel(BaseModel):
@@ -70,6 +120,10 @@ class DiagnosisResponse(BaseModel):
     segmented: bool
     phases: list[PhaseModel]
     per_feature_summary: list[FeatureSummaryModel]
+    excluded_features: list[ExcludedFeatureModel] = Field(default_factory=list)
+    timeline: TimelineModel | None = None
+    skeleton: SkeletonModel | None = None
     llm_advice: str | None = None
+    advice_source: str | None = None
     metadata: DemoMetadataModel | None = None
     quality: QualityModel | None = None

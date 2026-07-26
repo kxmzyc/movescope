@@ -35,6 +35,10 @@ class WeightedSegmentedDTWAligner(DTWAligner):
 
     min_segment_frames: int = 3
     use_segmented: bool = True
+    # 1/std 权重的极差上限。小样本模板中某特征的跨视频 std 偶然趋近于零
+    # 时，原始 1/std 会到 1e6 量级，单特征即可主导对齐与总分；
+    # 钳制到 min 权重的固定倍数保留「低方差更重要」的排序，同时避免退化。
+    max_weight_ratio: float = 20.0
 
     def weighted_distance(self, query_frame: np.ndarray, reference_frame: np.ndarray, weights: np.ndarray) -> float:
         return float(np.sqrt(np.sum(weights * (query_frame - reference_frame) ** 2)))
@@ -43,7 +47,10 @@ class WeightedSegmentedDTWAligner(DTWAligner):
         std = np.asarray(template.std, dtype=float)
         if std.ndim != 1 or len(std) == 0 or not np.isfinite(std).all() or np.any(std < 0):
             raise ValueError("模板标准差必须由有限非负值组成")
+        if not np.isfinite(self.max_weight_ratio) or self.max_weight_ratio < 1.0:
+            raise ValueError("max_weight_ratio 必须是不小于 1 的有限值")
         weights = 1.0 / (std + 1e-6)
+        weights = np.minimum(weights, weights.min() * self.max_weight_ratio)
         return self._normalize_weights(weights, len(std))
 
     def detect_phases(self, feature_seq: np.ndarray, n_phases: int = 4) -> list[tuple[int, int]]:

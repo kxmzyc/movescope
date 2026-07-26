@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { BarChart3, CheckCircle2, Download } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, BarChart3, CheckCircle2, Download, EyeOff } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import type { Diagnosis } from '../api/types'
@@ -7,9 +7,10 @@ import type { Diagnosis } from '../api/types'
 type Props = {
   diagnosis: Diagnosis | null
   onDownload: () => void
+  onSeek?: (timeSec: number) => void
 }
 
-export function ResultsPanel({ diagnosis, onDownload }: Props) {
+export function ResultsPanel({ diagnosis, onDownload, onSeek }: Props) {
   const jointRows = useMemo(() => {
     if (!diagnosis) return []
     return diagnosis.per_feature_summary
@@ -30,6 +31,9 @@ export function ResultsPanel({ diagnosis, onDownload }: Props) {
     )
   }, [diagnosis])
 
+  const excluded = diagnosis?.excluded_features ?? []
+  const quality = diagnosis?.quality
+
   return (
     <aside className="panel results">
       <div className="scoreHeader">
@@ -49,10 +53,30 @@ export function ResultsPanel({ diagnosis, onDownload }: Props) {
             {diagnosis.metadata ? '合成验证' : '上传视频'}
           </span>
           {!diagnosis.segmented && <span className="sourceBadge">全序列对齐</span>}
+          {quality && (
+            <span className="sourceBadge neutral" title="默认流程使用 MediaPipe world landmarks 伪三维坐标">
+              {quality.pose_source === 'motionbert' ? 'MotionBERT 3D' : 'MediaPipe 伪3D'}
+            </span>
+          )}
           <button className="iconCommand" type="button" onClick={onDownload} title="下载 JSON 报告">
             <Download />
             导出 JSON
           </button>
+        </div>
+      )}
+
+      {quality && (
+        <p className="qualityRow">
+          {quality.frames} 帧 · {quality.fps.toFixed(1)} fps · 有效姿态 {(quality.valid_pose_ratio * 100).toFixed(0)}%
+        </p>
+      )}
+
+      {excluded.length > 0 && (
+        <div className="excludedNotice" role="note">
+          <EyeOff />
+          <span>
+            未参与评分：{excluded.map((item) => item.joint_display).join('、')}（{excluded[0].reason}）
+          </span>
         </div>
       )}
 
@@ -82,13 +106,25 @@ export function ResultsPanel({ diagnosis, onDownload }: Props) {
           <ul>
             {topAnomalies.slice(0, 4).map((item) => (
               <li key={`${item.phase.name}-${item.feature_index}`}>
-                <span>
-                  {item.joint_display}
-                  <small>
-                    {item.peak_time_sec.toFixed(2)} 秒峰值 · {(item.anomaly_ratio * 100).toFixed(0)}% 异常
-                  </small>
-                </span>
-                <strong>{item.mean_deviation_deg.toFixed(1)}°</strong>
+                <button
+                  type="button"
+                  className="anomalyItem"
+                  title="点击跳转到峰值时刻"
+                  onClick={() => onSeek?.(item.peak_time_sec)}
+                >
+                  <span>
+                    {item.joint_display}
+                    <em className={item.direction === 'positive' ? 'dirBadge over' : 'dirBadge under'}>
+                      {item.direction === 'positive' ? <ArrowUpRight /> : <ArrowDownRight />}
+                      {item.direction === 'positive' ? '角度偏大' : '角度偏小'}
+                    </em>
+                    <small>
+                      {item.peak_time_sec.toFixed(2)} 秒峰值 {item.peak_deviation_deg.toFixed(1)}° ·{' '}
+                      {(item.anomaly_ratio * 100).toFixed(0)}% 异常
+                    </small>
+                  </span>
+                  <strong>{item.mean_deviation_deg.toFixed(1)}°</strong>
+                </button>
               </li>
             ))}
           </ul>
@@ -98,7 +134,12 @@ export function ResultsPanel({ diagnosis, onDownload }: Props) {
       </section>
 
       <section className="advice">
-        <h2>训练建议</h2>
+        <h2>
+          训练建议
+          {diagnosis?.advice_source && (
+            <span className="adviceSource">{diagnosis.advice_source === 'openai' ? 'OpenAI 生成' : '本地规则'}</span>
+          )}
+        </h2>
         <p>{diagnosis?.llm_advice ?? '后端返回诊断结果后，将在这里显示动作纠正建议。'}</p>
         {diagnosis?.metadata && <small className="disclaimer">{diagnosis.metadata.disclaimer}</small>}
       </section>

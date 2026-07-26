@@ -20,12 +20,18 @@ def generate_text_summary(result: dict, top_k: int = 3) -> str:
 
     if not anomalies:
         lines.append("主要问题：未检测到明显关节偏差。")
-        return "\n".join(lines)
+    else:
+        anomalies.sort(key=lambda item: float(item[1].get("mean_deviation_deg", 0.0)), reverse=True)
+        lines.append(f"主要问题（按偏差排序前{top_k}）：")
+        for idx, (phase, anomaly) in enumerate(anomalies[:top_k], start=1):
+            start, end = phase["time_range"]
+            display = anomaly.get("joint_display") or anomaly.get("joint", "")
+            lines.append(f"{idx}. [{start:.1f}-{end:.1f}秒] {display} 平均偏差 {anomaly['mean_deviation_deg']:.1f}度")
 
-    anomalies.sort(key=lambda item: float(item[1].get("mean_deviation_deg", 0.0)), reverse=True)
-    lines.append(f"主要问题（按偏差排序前{top_k}）：")
-    for idx, (phase, anomaly) in enumerate(anomalies[:top_k], start=1):
-        start, end = phase["time_range"]
-        display = anomaly.get("joint_display") or anomaly.get("joint", "")
-        lines.append(f"{idx}. [{start:.1f}-{end:.1f}秒] {display} 平均偏差 {anomaly['mean_deviation_deg']:.1f}度")
+    excluded = result.get("excluded_features") or []
+    if excluded:
+        names = "、".join(
+            str(item.get("joint_display") or item.get("joint", "")) for item in excluded
+        )
+        lines.append(f"未参与评分的关节（检测数据不完整）：{names}")
     return "\n".join(lines)

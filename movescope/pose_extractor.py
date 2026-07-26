@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
+from movescope.errors import InvalidInputError
 from movescope.features import JOINT_NAMES
 from movescope.types import PoseResult
 
@@ -53,7 +54,7 @@ class PoseExtractor:
 
         capture = cv2.VideoCapture(video_path)
         if not capture.isOpened():
-            raise ValueError(f"无法打开视频：{video_path}")
+            raise InvalidInputError("无法打开或解码上传的视频，请确认文件是完整有效的视频。")
 
         fps = float(capture.get(cv2.CAP_PROP_FPS) or 30.0)
         coords_2d = []

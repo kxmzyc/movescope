@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,6 +21,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=__version__,
         description="可解释的单目深蹲动作质量评估服务。",
     )
+    # 评估是 CPU 密集型任务；并发上限保护线程池，占满时 /assess 返回 503。
+    app.state.assess_semaphore = asyncio.Semaphore(settings.max_concurrent_assess)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),

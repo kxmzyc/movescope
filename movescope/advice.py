@@ -8,11 +8,14 @@ AdviceProvider 协议，调用方按需选择。
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from movescope.features import JOINT_DISPLAY_NAMES
+
+logger = logging.getLogger(__name__)
 
 DISCLAIMER = "本分析仅供动作训练参考，不能替代专业教练或医疗意见。"
 
@@ -63,20 +66,33 @@ class OpenAIAdvisor:
     """远程模型建议；未配置密钥或请求失败时回退到本地规则。"""
 
     model: str = "gpt-4o"
+    timeout_sec: float = 20.0
     fallback: RuleBasedAdvisor = field(default_factory=RuleBasedAdvisor)
 
     def generate_advice(self, diagnosis: dict[str, Any]) -> str:
+        return self.generate_advice_with_source(diagnosis)[0]
+
+    def generate_advice_with_source(self, diagnosis: dict[str, Any]) -> tuple[str, str]:
+        """返回 (建议文本, 实际来源)；来源为 "openai" 或回退后的 "rule"。"""
         if not os.getenv("OPENAI_API_KEY"):
-            return self.fallback.generate_advice(diagnosis)
+            return self.fallback.generate_advice(diagnosis), "rule"
         try:
-            return self._remote_advice(diagnosis)
+            content = self._remote_advice(diagnosis)
         except Exception:
-            return self.fallback.generate_advice(diagnosis)
+            logger.warning("OpenAI 建议生成失败，已回退到本地规则建议", exc_info=True)
+            return self.fallback.generate_advice(diagnosis), "rule"
+        if content:
+            return content, "openai"
+        logger.warning("OpenAI 返回了空建议内容，已回退到本地规则建议")
+        return self.fallback.generate_advice(diagnosis), "rule"
 
     def _remote_advice(self, diagnosis: dict[str, Any]) -> str:
         from openai import OpenAI
 
-        client = OpenAI()
+        # timeline/skeleton 是逐帧数组，长视频下可达上百 KB；远程建议只需要
+        # 聚合诊断，剔除后再外发，同时控制提示词体积与数据外发范围。
+        payload = {key: value for key, value in diagnosis.items() if key not in ("timeline", "skeleton")}
+        client = OpenAI(timeout=self.timeout_sec)
         response = client.chat.completions.create(
             model=self.model,
             messages=[
@@ -91,14 +107,32 @@ class OpenAIAdvisor:
                     "role": "user",
                     "content": (
                         "以下是动作质量评估结果，请针对异常关节给出每项1到2句建议：\n"
-                        f"{json.dumps(diagnosis, ensure_ascii=False)}"
+                        f"{json.dumps(payload, ensure_ascii=False)}"
                     ),
                 },
             ],
             temperature=0.2,
         )
         content = response.choices[0].message.content or ""
-        return content.strip() or self.fallback.generate_advice(diagnosis)
+        return content.strip()
+
+
+def generate_advice(
+    diagnosis: dict[str, Any],
+    provider: str = "rule",
+    model: str = "gpt-4o",
+    timeout_sec: float = 20.0,
+) -> tuple[str | None, str | None]:
+    """按配置的来源生成建议，返回 (建议文本, 实际来源)。
+
+    provider="off" 返回 (None, None)；"openai" 在未配置密钥或请求失败
+    时回退本地规则，实际来源以返回值为准。
+    """
+    if provider == "off":
+        return None, None
+    if provider == "openai":
+        return OpenAIAdvisor(model=model, timeout_sec=timeout_sec).generate_advice_with_source(diagnosis)
+    return RuleBasedAdvisor().generate_advice(diagnosis), "rule"
 
 
 def collect_anomalies(diagnosis: dict[str, Any]) -> list[dict[str, Any]]:

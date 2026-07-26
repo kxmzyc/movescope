@@ -6,9 +6,9 @@ import { actionLabel, isSupportedVideo } from '../constants'
 const EXTENSIONS = ['.mp4', '.mov', '.avi', '.webm', '.mkv']
 
 describe('isSupportedVideo', () => {
-  it('接受 video/* MIME 类型', () => {
-    const file = new File(['x'], 'clip.bin', { type: 'video/mp4' })
-    expect(isSupportedVideo(file, EXTENSIONS)).toBe(true)
+  it('以扩展名白名单为准，MIME 是 video/* 但扩展名不在白名单的文件被拒绝', () => {
+    const file = new File(['x'], 'clip.flv', { type: 'video/x-flv' })
+    expect(isSupportedVideo(file, EXTENSIONS)).toBe(false)
   })
 
   it('接受白名单扩展名（大小写不敏感）', () => {
