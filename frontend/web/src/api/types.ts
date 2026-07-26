@@ -50,6 +50,7 @@ export type Anomaly = {
 
 export type DiagnosisPhase = {
   name: string
+  label: string
   index: number
   time_range: [number, number]
   phase_score: number
@@ -62,7 +63,8 @@ export type TimelineSeries = {
   joint_display: string
   parent: string
   child: string
-  tolerance_deg: number
+  // 逐帧容差带，与 test_deg 等长（旧模板由后端广播为等值数组）。
+  tolerance_deg: number[]
   test_deg: number[]
   reference_deg: number[]
   anomaly: boolean[]

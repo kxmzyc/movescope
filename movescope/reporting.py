@@ -26,7 +26,10 @@ def generate_text_summary(result: dict, top_k: int = 3) -> str:
         for idx, (phase, anomaly) in enumerate(anomalies[:top_k], start=1):
             start, end = phase["time_range"]
             display = anomaly.get("joint_display") or anomaly.get("joint", "")
-            lines.append(f"{idx}. [{start:.1f}-{end:.1f}秒] {display} 平均偏差 {anomaly['mean_deviation_deg']:.1f}度")
+            label = phase.get("label")
+            stage = f"{label} " if label else ""
+            deviation = float(anomaly["mean_deviation_deg"])
+            lines.append(f"{idx}. [{stage}{start:.1f}-{end:.1f}秒] {display} 平均偏差 {deviation:.1f}度")
 
     excluded = result.get("excluded_features") or []
     if excluded:

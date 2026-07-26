@@ -22,6 +22,7 @@ const DIAGNOSIS: Diagnosis = {
   phases: [
     {
       name: 'phase_0',
+      label: '下蹲',
       index: 0,
       time_range: [0.0, 0.5],
       phase_score: 95.0,
@@ -29,6 +30,7 @@ const DIAGNOSIS: Diagnosis = {
     },
     {
       name: 'phase_1',
+      label: '蹲底',
       index: 1,
       time_range: [0.6, 0.8],
       phase_score: 75.0,
@@ -83,7 +85,7 @@ const DIAGNOSIS: Diagnosis = {
         joint_display: '左膝',
         parent: 'left_hip',
         child: 'left_ankle',
-        tolerance_deg: 5.0,
+        tolerance_deg: [5.0, 5.0, 5.0, 5.0],
         test_deg: [170.1, 160.4, 150.2, 140.9],
         reference_deg: [170.0, 162.0, 155.0, 148.0],
         anomaly: [false, false, false, true],
@@ -94,7 +96,7 @@ const DIAGNOSIS: Diagnosis = {
         joint_display: '右膝',
         parent: 'right_hip',
         child: 'right_ankle',
-        tolerance_deg: 5.0,
+        tolerance_deg: [4.0, 4.0, 6.0, 6.0],
         test_deg: [170.0, 162.0, 155.0, 148.0],
         reference_deg: [170.0, 162.0, 155.0, 148.0],
         anomaly: [false, false, false, false],
@@ -166,15 +168,15 @@ describe('VideoPanel', () => {
     expect(screen.getByText(/72 帧/)).toBeInTheDocument()
   })
 
-  it('渲染阶段时间轴且点击可跳转', () => {
+  it('渲染带语义标签的阶段时间轴且点击可跳转', () => {
     const onSeek = vi.fn()
     render(<VideoPanel previewUrl={null} diagnosis={DIAGNOSIS} error={null} onSeek={onSeek} />)
 
-    const first = screen.getByRole('button', { name: /阶段 1/ })
+    const first = screen.getByRole('button', { name: /下蹲/ })
     first.click()
 
     expect(onSeek).toHaveBeenCalledWith(0.0)
-    expect(screen.getByRole('button', { name: /阶段 2/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /蹲底/ })).toBeInTheDocument()
   })
 
   it('有视频与骨架数据时渲染叠加画布', () => {
@@ -238,12 +240,19 @@ describe('TimelinePanel', () => {
     expect(screen.getByText(/越界 1\/4 帧/)).toBeInTheDocument()
   })
 
-  it('切换关节后更新统计信息', () => {
+  it('切换关节后更新统计信息与容差带范围', () => {
     render(<TimelinePanel diagnosis={DIAGNOSIS} />)
 
     fireEvent.click(screen.getByRole('tab', { name: /右膝/ }))
 
     expect(screen.getByText(/越界 0\/4 帧/)).toBeInTheDocument()
+    expect(screen.getByText(/容差带 ±4\.0–6\.0°/)).toBeInTheDocument()
+  })
+
+  it('容差恒定时显示单一容差值', () => {
+    render(<TimelinePanel diagnosis={DIAGNOSIS} />)
+
+    expect(screen.getByText(/容差 ±5\.0°/)).toBeInTheDocument()
   })
 
   it('无时间轴数据时不渲染', () => {

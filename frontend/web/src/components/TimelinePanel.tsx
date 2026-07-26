@@ -28,6 +28,18 @@ type ChartRow = {
   anomaly: boolean
 }
 
+function formatToleranceRange(toleranceDeg: number[]): string {
+  if (!toleranceDeg.length) return '容差 —'
+  let min = toleranceDeg[0]
+  let max = toleranceDeg[0]
+  for (const value of toleranceDeg) {
+    if (value < min) min = value
+    if (value > max) max = value
+  }
+  if (max - min < 0.05) return `容差 ±${max.toFixed(1)}°`
+  return `容差带 ±${min.toFixed(1)}–${max.toFixed(1)}°（随动作阶段变化）`
+}
+
 export function TimelinePanel({ diagnosis, onSeek }: Props) {
   const timeline = diagnosis.timeline
   const series = useMemo(() => timeline?.series ?? [], [timeline])
@@ -54,11 +66,12 @@ export function TimelinePanel({ diagnosis, onSeek }: Props) {
     if (!timeline || !active) return []
     return timeline.time_sec.map((t, idx) => {
       const ref = active.reference_deg[idx]
+      const tol = active.tolerance_deg[idx]
       return {
         t,
         test: active.test_deg[idx],
         ref,
-        band: [ref - active.tolerance_deg, ref + active.tolerance_deg],
+        band: [ref - tol, ref + tol],
         anomaly: active.anomaly[idx],
       }
     })
@@ -155,7 +168,7 @@ export function TimelinePanel({ diagnosis, onSeek }: Props) {
       </div>
 
       <p className="timelineMeta">
-        容差 ±{active.tolerance_deg.toFixed(1)}°，越界 {active.anomaly.filter(Boolean).length}/
+        {formatToleranceRange(active.tolerance_deg)}，越界 {active.anomaly.filter(Boolean).length}/
         {active.anomaly.length} 帧
         {timeline.frame_stride > 1 && `（每 ${timeline.frame_stride} 帧采样）`}
       </p>

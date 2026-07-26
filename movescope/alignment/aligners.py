@@ -39,11 +39,15 @@ class WeightedSegmentedDTWAligner(DTWAligner):
     # 时，原始 1/std 会到 1e6 量级，单特征即可主导对齐与总分；
     # 钳制到 min 权重的固定倍数保留「低方差更重要」的排序，同时避免退化。
     max_weight_ratio: float = 20.0
+    # Sakoe-Chiba 带约束（参考长度的比例）；None 表示不约束。
+    band_ratio: float | None = None
 
     def weighted_distance(self, query_frame: np.ndarray, reference_frame: np.ndarray, weights: np.ndarray) -> float:
         return float(np.sqrt(np.sum(weights * (query_frame - reference_frame) ** 2)))
 
     def compute_joint_weights(self, template) -> np.ndarray:
+        # template.std 为「对齐后逐帧跨视频 std 的时间平均」（模板 v2）：
+        # 专家之间在同一动作阶段越一致的特征权重越高。
         std = np.asarray(template.std, dtype=float)
         if std.ndim != 1 or len(std) == 0 or not np.isfinite(std).all() or np.any(std < 0):
             raise ValueError("模板标准差必须由有限非负值组成")
@@ -60,7 +64,7 @@ class WeightedSegmentedDTWAligner(DTWAligner):
         query = np.asarray(query, dtype=float)
         reference = np.asarray(reference, dtype=float)
         weights = self._normalize_weights(weights, query.shape[1])
-        return dtw_align(query, reference, weights)
+        return dtw_align(query, reference, weights, band_ratio=self.band_ratio)
 
     def align(
         self,

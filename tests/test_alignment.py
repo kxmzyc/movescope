@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from movescope.alignment import DTWAligner, WeightedSegmentedDTWAligner
+from movescope.alignment.dtw import cost_matrix, dtw_align
 
 
 def test_standard_dtw_path_is_monotonic():
@@ -104,3 +105,43 @@ def test_invalid_weights_are_rejected(weights):
 
     with pytest.raises(ValueError, match="权重"):
         WeightedSegmentedDTWAligner().align(seq, seq, weights=weights)
+
+
+def test_band_ratio_masks_off_diagonal_cells():
+    query = np.zeros((20, 2))
+    reference = np.zeros((20, 2))
+
+    costs = cost_matrix(query, reference, band_ratio=0.1)
+
+    assert np.isinf(costs[0, -1])
+    assert np.isinf(costs[-1, 0])
+    assert np.isfinite(np.diag(costs)).all()
+
+
+@pytest.mark.parametrize("band_ratio", [0.0, 1.5, np.nan])
+def test_invalid_band_ratio_rejected(band_ratio):
+    seq = np.zeros((4, 2))
+
+    with pytest.raises(ValueError, match="band_ratio"):
+        cost_matrix(seq, seq, band_ratio=band_ratio)
+
+
+def test_band_constrained_alignment_keeps_feasible_path():
+    """带宽会放宽到不小于长度差，约束下仍必须存在贯穿两端的单调路径。"""
+    query = np.linspace(0.0, 1.0, 30)[:, None] * np.ones((1, 2))
+    reference = np.linspace(0.0, 1.0, 12)[:, None] * np.ones((1, 2))
+
+    path = dtw_align(query, reference, band_ratio=0.05)
+
+    assert path[0] == (0, 0)
+    assert path[-1] == (29, 11)
+    assert all(a[0] <= b[0] and a[1] <= b[1] for a, b in pairwise(path))
+
+
+def test_aligner_band_ratio_passthrough():
+    query = np.arange(24, dtype=float).reshape(12, 2)
+
+    path = WeightedSegmentedDTWAligner(min_segment_frames=2, band_ratio=0.3).align(query, query)
+
+    assert path[0] == (0, 0)
+    assert path[-1] == (11, 11)

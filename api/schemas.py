@@ -42,6 +42,7 @@ class AnomalyModel(BaseModel):
 
 class PhaseModel(BaseModel):
     name: str
+    label: str
     index: int
     time_range: list[float] = Field(min_length=2, max_length=2)
     phase_score: float
@@ -75,7 +76,8 @@ class TimelineSeriesModel(BaseModel):
     joint_display: str
     parent: str
     child: str
-    tolerance_deg: float
+    # 模板 v2 起为逐帧容差带（与 test_deg 等长）；旧模板由引擎广播为等值数组。
+    tolerance_deg: list[float]
     test_deg: list[float]
     reference_deg: list[float]
     anomaly: list[bool]

@@ -21,14 +21,32 @@ AlignmentPath = list[tuple[int, int]]
 _CHUNK_BYTES = 64 * 1024 * 1024
 
 
-def cost_matrix(query: np.ndarray, reference: np.ndarray, weights: np.ndarray | None = None) -> np.ndarray:
-    """逐帧对的（加权）欧氏距离矩阵，形状 (len(query), len(reference))。"""
+def cost_matrix(
+    query: np.ndarray,
+    reference: np.ndarray,
+    weights: np.ndarray | None = None,
+    band_ratio: float | None = None,
+) -> np.ndarray:
+    """逐帧对的（加权）欧氏距离矩阵，形状 (len(query), len(reference))。
+
+    band_ratio 非空时应用 Sakoe-Chiba 带约束：以斜率归一的对角线为中心，
+    带宽为参考长度的 band_ratio 倍（并放宽到不小于两序列长度差与 1 帧，
+    保证 (0,0)→(n-1,m-1) 始终存在可行路径），带外单元代价为 +inf。
+    """
     query = np.asarray(query, dtype=float)
     reference = np.asarray(reference, dtype=float)
     n_query, feature_dim = query.shape
     n_ref = reference.shape[0]
 
+    band_width = None
+    if band_ratio is not None:
+        if not np.isfinite(band_ratio) or not 0.0 < band_ratio <= 1.0:
+            raise ValueError("band_ratio 必须在 (0, 1] 区间内")
+        band_width = max(int(np.ceil(band_ratio * n_ref)), abs(n_ref - n_query), 1)
+
     costs = np.empty((n_query, n_ref), dtype=float)
+    ref_index = np.arange(n_ref, dtype=float)
+    slope = (n_ref - 1) / (n_query - 1) if n_query > 1 else 0.0
     chunk = max(1, _CHUNK_BYTES // (max(1, n_ref * feature_dim) * 8))
     for start in range(0, n_query, chunk):
         end = min(n_query, start + chunk)
@@ -37,6 +55,10 @@ def cost_matrix(query: np.ndarray, reference: np.ndarray, weights: np.ndarray | 
         if weights is not None:
             diff *= weights
         np.sqrt(diff.sum(axis=2), out=costs[start:end])
+        if band_width is not None:
+            centers = np.arange(start, end, dtype=float) * slope
+            outside = np.abs(centers[:, None] - ref_index[None, :]) > band_width
+            costs[start:end][outside] = np.inf
     return costs
 
 
@@ -87,8 +109,13 @@ def backtrack(dp: np.ndarray) -> AlignmentPath:
     return path
 
 
-def dtw_align(query: np.ndarray, reference: np.ndarray, weights: np.ndarray | None = None) -> AlignmentPath:
+def dtw_align(
+    query: np.ndarray,
+    reference: np.ndarray,
+    weights: np.ndarray | None = None,
+    band_ratio: float | None = None,
+) -> AlignmentPath:
     """完整 DTW 对齐：代价矩阵 → DP → 回溯。空序列返回空路径。"""
     if len(query) == 0 or len(reference) == 0:
         return []
-    return backtrack(dtw_dp(cost_matrix(query, reference, weights)))
+    return backtrack(dtw_dp(cost_matrix(query, reference, weights, band_ratio)))

@@ -92,10 +92,10 @@ function PhaseBar({ diagnosis, onSeek }: { diagnosis: Diagnosis; onSeek?: (timeS
             type="button"
             className={`phaseSegment ${tone}`}
             style={{ width: `${Math.max(width, 4)}%` }}
-            title={`阶段 ${phase.index + 1}：${phase.time_range[0].toFixed(1)}-${phase.time_range[1].toFixed(1)} 秒，得分 ${phase.phase_score.toFixed(0)}`}
+            title={`${phase.label}：${phase.time_range[0].toFixed(1)}-${phase.time_range[1].toFixed(1)} 秒，得分 ${phase.phase_score.toFixed(0)}`}
             onClick={() => onSeek?.(phase.time_range[0])}
           >
-            <span>阶段 {phase.index + 1}</span>
+            <span>{phase.label}</span>
             <strong>{phase.phase_score.toFixed(0)}</strong>
           </button>
         )

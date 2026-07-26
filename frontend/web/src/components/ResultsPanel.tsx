@@ -119,8 +119,8 @@ export function ResultsPanel({ diagnosis, onDownload, onSeek }: Props) {
                       {item.direction === 'positive' ? '角度偏大' : '角度偏小'}
                     </em>
                     <small>
-                      {item.peak_time_sec.toFixed(2)} 秒峰值 {item.peak_deviation_deg.toFixed(1)}° ·{' '}
-                      {(item.anomaly_ratio * 100).toFixed(0)}% 异常
+                      {item.phase.label} · {item.peak_time_sec.toFixed(2)} 秒峰值{' '}
+                      {item.peak_deviation_deg.toFixed(1)}° · {(item.anomaly_ratio * 100).toFixed(0)}% 异常
                     </small>
                   </span>
                   <strong>{item.mean_deviation_deg.toFixed(1)}°</strong>
