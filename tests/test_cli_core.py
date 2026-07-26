@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 
-from scripts import fetch_videos
+from movescope.cli import fetch_videos
 
 
 def test_fetch_videos_dry_run_handles_unprintable_error(monkeypatch, capsys):

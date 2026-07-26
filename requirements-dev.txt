@@ -1,4 +1,2 @@
--r requirements.txt
-
-pytest==8.2.2
-httpx==0.27.0
+# 开发依赖固定在 pyproject.toml 的 [project.optional-dependencies.dev] 中。
+-e .[dev]

@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
-
 
 JOINT_NAMES = [
     "pelvis",
@@ -63,17 +62,46 @@ JOINT_TRIPLETS = [
 ]
 
 
+@dataclass(frozen=True)
+class AngleFeature:
+    """一个关节角特征的结构化标识。
+
+    每个特征由三元组 (parent, joint, child) 定义：以 joint 为顶点、
+    指向 parent 与 child 的两条向量的夹角。
+    """
+
+    index: int
+    joint: str
+    parent: str
+    child: str
+    display_name: str
+
+
 @dataclass
 class FeatureExtractor:
     """从 17 关节三维骨架中提取逐帧关节角。"""
 
-    joint_names: list[str] | None = None
-    joint_triplets: list[tuple[str, str, str]] | None = None
+    joint_names: list[str] = field(default_factory=lambda: list(JOINT_NAMES))
+    joint_triplets: list[tuple[str, str, str]] = field(default_factory=lambda: list(JOINT_TRIPLETS))
 
     def __post_init__(self) -> None:
-        self.joint_names = self.joint_names or JOINT_NAMES
-        self.joint_triplets = self.joint_triplets or JOINT_TRIPLETS
         self._joint_index = {name: idx for idx, name in enumerate(self.joint_names)}
+        # 由实例自己的三元组构建（而非全局 JOINT_TRIPLETS），
+        # 注入自定义三元组时标签保持一致。
+        self._features = [
+            AngleFeature(
+                index=idx,
+                joint=joint,
+                parent=parent,
+                child=child,
+                display_name=JOINT_DISPLAY_NAMES.get(joint, joint),
+            )
+            for idx, (parent, joint, child) in enumerate(self.joint_triplets)
+        ]
+
+    @property
+    def features(self) -> list[AngleFeature]:
+        return self._features
 
     def compute_angles(self, coords_3d: np.ndarray) -> np.ndarray:
         coords = np.asarray(coords_3d, dtype=float)

@@ -6,7 +6,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-
 Path = list[tuple[int, int]]
 
 
@@ -142,7 +141,7 @@ class WeightedSegmentedDTWAligner(DTWAligner):
         weights = self._normalize_weights(weights, query.shape[1])
 
         base = DTWAligner()
-        base.distance = lambda q, r: self.weighted_distance(q, r, weights)  # type: ignore[method-assign]
+        base.distance = lambda q, r: self.weighted_distance(q, r, weights)  # type: ignore[assignment, method-assign]
         return base.align(query, reference)
 
     def align(

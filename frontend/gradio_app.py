@@ -2,25 +2,20 @@
 
 from __future__ import annotations
 
-import sys
 import tempfile
 import time
 import uuid
 from pathlib import Path
 from typing import Any
 
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
+from movescope.advice import OpenAIAdvisor
 from movescope.alignment import WeightedSegmentedDTWAligner
-from movescope.assessment import AssessmentEngine, generate_text_summary
-from movescope.features import FeatureExtractor, JOINT_DISPLAY_NAMES, JOINT_NAMES
-from movescope.llm_advisor import LLMAdvisor
+from movescope.assessment import AssessmentEngine
+from movescope.features import JOINT_NAMES, FeatureExtractor
 from movescope.pose_extractor import PoseExtractor
+from movescope.reporting import generate_text_summary
 from movescope.template import ActionTemplate
-
+from movescope.types import PoseResult
 
 SKELETON_EDGES = [
     ("pelvis", "left_hip"),
@@ -55,18 +50,13 @@ def assess_video(video_path: str | None, action: str = "squat") -> tuple[str | N
 
     try:
         pose = PoseExtractor().extract(video_path)
-        coords_3d = pose.get("coords_3d")
-        if coords_3d is None:
-            coords_3d = pose["coords_3d_pseudo"]
-
         engine = AssessmentEngine(
             template=template,
             aligner=WeightedSegmentedDTWAligner(),
             feature_extractor=FeatureExtractor(),
-            fps=float(pose.get("fps", 30.0)),
         )
-        result = engine.assess(coords_3d)
-        advice = LLMAdvisor().generate_advice(result)
+        result = engine.assess_pose(pose)
+        advice = OpenAIAdvisor().generate_advice(result)
         overlay_path = render_overlay(video_path, pose, result)
         text = f"{generate_text_summary(result)}\n\n纠错建议：\n{advice}"
         return overlay_path, float(result["total_score"]), _bar_data(result), text
@@ -74,7 +64,7 @@ def assess_video(video_path: str | None, action: str = "squat") -> tuple[str | N
         return None, 0.0, _empty_bar_data(), f"评估失败：{exc}"
 
 
-def render_overlay(video_path: str, pose: dict[str, Any], result: dict[str, Any]) -> str:
+def render_overlay(video_path: str, pose: PoseResult, result: dict[str, Any]) -> str:
     import cv2
 
     output_path = Path(tempfile.gettempdir()) / f"movescope_overlay_{uuid.uuid4().hex}.mp4"
@@ -83,7 +73,7 @@ def render_overlay(video_path: str, pose: dict[str, Any], result: dict[str, Any]
     if not capture.isOpened():
         raise ValueError(f"无法打开视频：{video_path}")
 
-    fps = float(capture.get(cv2.CAP_PROP_FPS) or pose.get("fps", 30.0) or 30.0)
+    fps = float(capture.get(cv2.CAP_PROP_FPS) or pose.fps or 30.0)
     width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     writer = cv2.VideoWriter(
@@ -96,8 +86,8 @@ def render_overlay(video_path: str, pose: dict[str, Any], result: dict[str, Any]
         capture.release()
         raise RuntimeError("无法创建骨架叠加视频。")
 
-    coords_2d = pose["coords_2d"]
-    confidence = pose["confidence"]
+    coords_2d = pose.coords_2d
+    confidence = pose.confidence
     highlighted = _highlighted_joints(result)
     joint_index = {name: idx for idx, name in enumerate(JOINT_NAMES)}
     score = float(result.get("total_score", 0.0))
@@ -129,7 +119,9 @@ def render_overlay(video_path: str, pose: dict[str, Any], result: dict[str, Any]
     return str(output_path)
 
 
-def _draw_skeleton(frame: Any, coords: Any, confidence: Any, joint_index: dict[str, int], highlighted: set[str]) -> None:
+def _draw_skeleton(
+    frame: Any, coords: Any, confidence: Any, joint_index: dict[str, int], highlighted: set[str]
+) -> None:
     import cv2
 
     height, width = frame.shape[:2]
@@ -160,7 +152,7 @@ def _highlighted_joints(result: dict[str, Any], limit: int = 3) -> set[str]:
     anomalies.sort(key=lambda item: float(item.get("mean_deviation_deg", 0.0)), reverse=True)
     names = set()
     for item in anomalies[:limit]:
-        joint = str(item.get("joint_name", "")).split(":", 1)[0]
+        joint = str(item.get("joint", ""))
         if joint in JOINT_NAMES:
             names.add(joint)
     return names
@@ -169,15 +161,14 @@ def _highlighted_joints(result: dict[str, Any], limit: int = 3) -> set[str]:
 def _bar_data(result: dict[str, Any]) -> Any:
     import pandas as pd
 
-    rows = []
-    for joint, values in result.get("per_joint_summary", {}).items():
-        rows.append(
-            {
-                "关节": JOINT_DISPLAY_NAMES.get(joint.split(":", 1)[0], joint.split(":", 1)[0]),
-                "平均偏差（度）": round(float(values.get("mean_dev", 0.0)), 2),
-                "异常帧占比（%）": round(float(values.get("anomaly_ratio", 0.0)) * 100.0, 1),
-            }
-        )
+    rows = [
+        {
+            "关节": item.get("joint_display") or item.get("joint", ""),
+            "平均偏差（度）": round(float(item.get("mean_dev", 0.0)), 2),
+            "异常帧占比（%）": round(float(item.get("anomaly_ratio", 0.0)) * 100.0, 1),
+        }
+        for item in result.get("per_feature_summary", [])
+    ]
     rows.sort(key=lambda row: row["平均偏差（度）"], reverse=True)
     return pd.DataFrame(rows or [{"关节": "暂无", "平均偏差（度）": 0.0, "异常帧占比（%）": 0.0}])
 

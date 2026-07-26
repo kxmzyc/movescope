@@ -4,16 +4,10 @@ from __future__ import annotations
 
 import numpy as np
 
+from movescope.advice import RuleBasedAdvisor
 from movescope.alignment import WeightedSegmentedDTWAligner
 from movescope.assessment import AssessmentEngine
-from movescope.features import FeatureExtractor
-from movescope.llm_advisor import LLMAdvisor
 from movescope.template import ActionTemplate
-
-
-class _PassthroughFeatureExtractor(FeatureExtractor):
-    def extract(self, coords_3d, normalize=True):
-        return np.asarray(coords_3d, dtype=float)
 
 
 def generate_synthetic_demo() -> dict:
@@ -37,14 +31,9 @@ def generate_synthetic_demo() -> dict:
     test[middle, 8] += 9.0
     test[progress >= 0.55, 11] += 8.0
 
-    engine = AssessmentEngine(
-        template=template,
-        aligner=WeightedSegmentedDTWAligner(),
-        feature_extractor=_PassthroughFeatureExtractor(),
-        fps=30.0,
-    )
-    result = engine.assess(test)
-    result["llm_advice"] = LLMAdvisor().generate_advice(result, allow_remote=False)
+    engine = AssessmentEngine(template=template, aligner=WeightedSegmentedDTWAligner(), fps=30.0)
+    result = engine.assess_features(test)
+    result["llm_advice"] = RuleBasedAdvisor().generate_advice(result)
     result["metadata"] = {
         "source": "synthetic",
         "label": "确定性深蹲关节角演示",

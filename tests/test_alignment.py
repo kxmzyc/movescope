@@ -1,3 +1,5 @@
+from itertools import pairwise
+
 import numpy as np
 import pytest
 
@@ -12,7 +14,7 @@ def test_standard_dtw_path_is_monotonic():
 
     assert path[0] == (0, 0)
     assert path[-1] == (2, 1)
-    assert all(a[0] <= b[0] and a[1] <= b[1] for a, b in zip(path, path[1:]))
+    assert all(a[0] <= b[0] and a[1] <= b[1] for a, b in pairwise(path))
 
 
 def test_segmented_path_continuous():
@@ -21,7 +23,7 @@ def test_segmented_path_continuous():
 
     assert path[0] == (0, 0)
     assert path[-1] == (11, 11)
-    assert all(a[0] <= b[0] and a[1] <= b[1] for a, b in zip(path, path[1:]))
+    assert all(a[0] <= b[0] and a[1] <= b[1] for a, b in pairwise(path))
 
 
 def test_detect_phases_tracks_feature_blocks():

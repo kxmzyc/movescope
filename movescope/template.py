@@ -7,10 +7,12 @@ from pathlib import Path
 
 import numpy as np
 
+from movescope.config import Settings
+from movescope.constants import VIDEO_EXTENSIONS
+from movescope.errors import TemplateNotFoundError
 
 DEFAULT_K = 1.5
 MIN_TOLERANCE_DEG = 5.0
-VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".webm", ".mkv"}
 
 
 @dataclass
@@ -34,10 +36,7 @@ class ActionTemplate:
         feature_sequences = []
         for video_path in video_files:
             pose = pose_extractor.extract(str(video_path))
-            coords_3d = pose.get("coords_3d")
-            if coords_3d is None:
-                coords_3d = pose["coords_3d_pseudo"]
-            feature_sequences.append(feature_extractor.extract(coords_3d, normalize=False))
+            feature_sequences.append(feature_extractor.extract(pose.best_coords_3d, normalize=False))
 
         self.build_from_features(feature_sequences, k=k)
 
@@ -73,7 +72,7 @@ class ActionTemplate:
     def save(self, output_path: str | Path | None = None) -> Path:
         if self.mean is None or self.std is None or self.tolerance is None or self.representative_seq is None:
             raise ValueError("动作模板尚未构建")
-        path = Path(output_path) if output_path else Path("data/templates") / f"{self.action_name}.npz"
+        path = Path(output_path) if output_path else Settings.from_env().templates_dir / f"{self.action_name}.npz"
         path.parent.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(
             path,
@@ -87,10 +86,10 @@ class ActionTemplate:
         return path
 
     @classmethod
-    def load(cls, action_name: str, path: str | Path | None = None) -> "ActionTemplate":
-        template_path = Path(path) if path else Path("data/templates") / f"{action_name}.npz"
+    def load(cls, action_name: str, path: str | Path | None = None) -> ActionTemplate:
+        template_path = Path(path) if path else Settings.from_env().templates_dir / f"{action_name}.npz"
         if not template_path.exists():
-            raise FileNotFoundError(f"未找到动作模板：{template_path}")
+            raise TemplateNotFoundError(f"未找到动作模板：{template_path}")
         data = np.load(template_path, allow_pickle=False)
         return cls(
             action_name=str(data["action_name"]),

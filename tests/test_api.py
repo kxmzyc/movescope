@@ -3,8 +3,10 @@ from pathlib import Path
 import numpy as np
 from fastapi.testclient import TestClient
 
-import api.main as api_main
 from api.main import app
+from api.services import AssessmentService
+from api.settings import get_settings
+from movescope.config import Settings
 from movescope.template import ActionTemplate
 
 
@@ -12,7 +14,10 @@ def test_health():
     response = TestClient(app).get("/health")
 
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["max_upload_bytes"] > 0
+    assert ".mp4" in payload["allowed_extensions"]
 
 
 def test_local_frontend_origin_is_allowed():
@@ -59,7 +64,9 @@ def test_demo_returns_reproducible_assessment():
     payload = response.json()
     assert payload["metadata"]["source"] == "synthetic"
     assert 0.0 <= payload["total_score"] <= 100.0
-    assert payload["phases"][0]["anomalies"]
+    assert any(phase["anomalies"] for phase in payload["phases"])
+    anomaly = next(anomaly for phase in payload["phases"] for anomaly in phase["anomalies"])
+    assert {"feature_index", "joint", "joint_display", "parent", "child"} <= set(anomaly)
 
 
 def test_assess_rejects_invalid_action_name(tmp_path, monkeypatch):
@@ -89,13 +96,16 @@ def test_assess_rejects_unsupported_file_type(tmp_path, monkeypatch):
 def test_assess_enforces_upload_limit(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _save_template()
-    monkeypatch.setattr(api_main, "MAX_UPLOAD_BYTES", 4)
-
-    response = TestClient(app).post(
-        "/assess",
-        data={"action": "squat"},
-        files={"video": ("sample.mp4", b"12345", "video/mp4")},
-    )
+    app.dependency_overrides[get_settings] = lambda: Settings(max_upload_mb=1)
+    try:
+        oversized = b"0" * (1024 * 1024 + 1)
+        response = TestClient(app).post(
+            "/assess",
+            data={"action": "squat"},
+            files={"video": ("sample.mp4", oversized, "video/mp4")},
+        )
+    finally:
+        app.dependency_overrides.clear()
 
     assert response.status_code == 413
 
@@ -104,13 +114,14 @@ def test_assess_success_path(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _save_template()
     monkeypatch.setattr(
-        api_main,
-        "_assess_file",
-        lambda _path, _template: {
+        AssessmentService,
+        "assess_file",
+        lambda _self, _path, _template: {
             "action": "squat",
             "total_score": 88.0,
+            "segmented": False,
             "phases": [],
-            "per_joint_summary": {},
+            "per_feature_summary": [],
             "llm_advice": "Keep the movement controlled.",
         },
     )

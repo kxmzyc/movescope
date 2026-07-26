@@ -1,0 +1,106 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "movescope"
+version = "0.3.0"
+description = "可解释的单目深蹲动作质量评估原型"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "Apache-2.0" }
+authors = [{ name = "kxmzyc" }]
+keywords = ["pose-estimation", "action-quality-assessment", "dtw", "mediapipe"]
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+]
+
+# 与重构前的 requirements.txt 完全一致的固定版本。
+dependencies = [
+    "mediapipe==0.10.14",
+    "opencv-python==4.10.0.84",
+    "numpy==1.26.4",
+    "fastapi==0.111.0",
+    "pydantic==2.9.2",
+    "uvicorn==0.30.1",
+    "gradio==4.44.1",
+    "huggingface-hub==0.25.2",
+    "websockets==12.0",
+    "yt-dlp==2024.7.9",
+    "pandas==2.2.2",
+    "python-multipart==0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.2.2",
+    "httpx==0.27.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+llm = ["openai>=1.40.0,<2.0.0"]
+
+[project.urls]
+Homepage = "https://github.com/kxmzyc/movescope"
+Repository = "https://github.com/kxmzyc/movescope"
+
+[project.scripts]
+movescope-build-template = "movescope.cli.build_template:main"
+movescope-assess-features = "movescope.cli.assess_features:main"
+movescope-extract-pose = "movescope.cli.extract_pose:main"
+movescope-check-env = "movescope.cli.check_environment:main"
+movescope-fetch-videos = "movescope.cli.fetch_videos:main"
+movescope-hello = "movescope.cli.hello_world:main"
+
+# 平铺布局：仓库根目录还有 data/ docs/ frontend/ lib/ notebooks/ scripts/ tests/，
+# 必须显式限定包发现范围，否则 setuptools 自动发现会失败。
+[tool.setuptools.packages.find]
+include = ["movescope*", "api*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# 取代 tests/conftest.py 里手写的 sys.path.insert；
+# scripts/ 作为隐式命名空间包被 tests/test_cli_core.py 导入，也依赖这一项。
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+extend-exclude = [".conda", "lib/MotionBERT", "notebooks"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "RUF", # ruff 专有规则
+]
+ignore = [
+    # 项目文案与注释均为中文，全角标点是有意为之，不是易混淆字符。
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI 的 File(...)/Form(...) 默认值写法是框架惯用法。
+"api/**" = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["movescope", "api", "scripts"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["movescope", "api"]
+exclude = "^\\.conda/"
+# mediapipe / cv2 / gradio / yt_dlp 均无类型存根。
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true

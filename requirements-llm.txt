@@ -1,3 +1,2 @@
--r requirements.txt
-
-openai>=1.40.0,<2.0.0
+# 可选 LLM 依赖固定在 pyproject.toml 的 [project.optional-dependencies.llm] 中。
+-e .[llm]

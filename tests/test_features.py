@@ -1,6 +1,6 @@
 import numpy as np
 
-from movescope.features import FeatureExtractor, JOINT_NAMES
+from movescope.features import JOINT_NAMES, FeatureExtractor
 
 
 def test_known_angle():

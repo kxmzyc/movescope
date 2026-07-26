@@ -2,7 +2,7 @@
 
 [![持续集成](https://github.com/kxmzyc/movescope/actions/workflows/ci.yml/badge.svg)](https://github.com/kxmzyc/movescope/actions/workflows/ci.yml)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776ab)](https://www.python.org/)
-[![版本](https://img.shields.io/badge/version-0.2.1-2f6f62)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-0.3.0-2f6f62)](CHANGELOG.md)
 [![开源许可](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
 MoveScope 是一个可解释的单目深蹲动作质量评估原型。系统将 MediaPipe 姿态结果映射为自定义 17 关节骨架，提取 12 维关节角特征，通过加权分段动态时间规整（DTW）将待测动作与专家模板对齐，最终返回评分、异常关节、峰值时刻和训练建议。
@@ -53,7 +53,7 @@ flowchart LR
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -e .
 ```
 
 macOS/Linux：
@@ -62,8 +62,10 @@ macOS/Linux：
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -e .
 ```
+
+依赖版本固定在 `pyproject.toml` 中；`pip install -r requirements.txt` 仍然可用（等价于 `pip install -e .`）。可编辑安装同时会注册 `movescope-build-template`、`movescope-assess-features`、`movescope-extract-pose`、`movescope-check-env`、`movescope-fetch-videos` 等命令行工具。
 
 ### 2. 启动 API
 
@@ -88,7 +90,7 @@ npm ci
 npm run dev
 ```
 
-打开 `http://127.0.0.1:5173`，等待界面显示 `API v0.2.1 已连接`，然后点击“运行合成演示”。响应元数据和界面都会明确标记该结果为合成验证。
+打开 `http://127.0.0.1:5173`，等待界面显示 `API v0.3.0 已连接`，然后点击“运行合成演示”。响应元数据和界面都会明确标记该结果为合成验证。
 
 ## 真实视频评估流程
 
@@ -140,10 +142,12 @@ curl -X POST http://127.0.0.1:8000/assess \
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| `GET` | `/health` | 获取服务状态与版本 |
+| `GET` | `/health` | 获取服务状态、版本、上传上限与支持的扩展名 |
 | `GET` | `/actions` | 获取可用的本地动作模板 |
 | `GET` | `/demo` | 运行确定性合成评估 |
 | `POST` | `/assess` | 使用动作模板评估上传的视频 |
+
+所有端点均带 Pydantic 响应模型，`http://127.0.0.1:8000/docs` 提供完整的字段类型。诊断响应中的每个异常项包含结构化关节标识（`joint`、`parent`、`child`、`joint_display`），`phases` 为分段对齐真实检测到的多个阶段；分段失败回退到全序列对齐时，`segmented` 字段为 `false`。
 
 `POST /assess` 会拒绝不安全的动作名、不支持的扩展名、空文件、超过限制的上传、姿态检测覆盖率过低的视频，以及含非有限值的特征数据。
 
@@ -151,6 +155,7 @@ curl -X POST http://127.0.0.1:8000/assess \
 
 | 环境变量 | 是否必需 | 默认值 | 用途 |
 | --- | --- | --- | --- |
+| `MOVESCOPE_DATA_DIR` | 否 | `data` | 模板与数据根目录 |
 | `MOVESCOPE_MAX_UPLOAD_MB` | 否 | `100` | 视频上传大小上限 |
 | `MOVESCOPE_CORS_ORIGINS` | 否 | 本地 Vite 地址 | 允许访问 API 的 Web 来源，多个地址用逗号分隔 |
 | `OPENAI_API_KEY` | 否 | 未设置 | 启用可选的远程训练建议 |
@@ -167,33 +172,48 @@ pip install -r requirements-llm.txt
 ## 开发与验证
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e .[dev]
+python -m ruff check .
+python -m mypy movescope api
 python -m pytest tests -q
 
 cd frontend/web
 npm ci
 npm run build
 npm run lint
+npm run test
 ```
 
-当前 v0.2.1 的验证范围：
+当前 v0.3.0 的验证范围：
 
-- 40 项 Python 单元、CLI、API、输入校验和回归测试。
+- 69 项 Python 单元、CLI、API、输入校验和回归测试，其中 25 项为向量化 DTW 与旧逐单元实现的随机对拍（路径逐点一致）。
+- ruff 静态检查与 mypy 类型检查覆盖 `movescope` 与 `api` 全部模块。
 - 覆盖 FastAPI 成功与错误路径、CORS、合成演示和上传限制。
-- 覆盖 React TypeScript 生产构建与 oxlint 检查。
+- 20 项 vitest 前端测试覆盖 API 客户端、上传校验 hook 与各面板组件，另有 React TypeScript 生产构建与 oxlint 检查。
 - 测试使用合成数组和模拟对象；仓库不包含公开的真实视频基准结果。
 
 ## 项目结构
 
 ```text
-movescope/          姿态、特征、模板、DTW、评分和合成演示核心代码
-api/                FastAPI 服务
-frontend/web/       React/Vite 中文评估工作台
-frontend/           Gradio 调试界面
-scripts/            环境检查、模板构建、特征提取和数据辅助工具
-tests/              Python 回归测试与 API 测试
-notebooks/          实验脚手架，不包含已发表的结果结论
-docs/               配置说明与项目文档
+movescope/            核心包
+  alignment/          向量化 DTW（dtw.py）、阶段分割（segmentation.py）与对齐器
+  cli/                命令行工具实现（注册为 movescope-* 命令）
+  assessment.py       评估引擎（assess_features / assess_coords / assess_pose）
+  features.py         12 维关节角特征与结构化关节标识
+  scoring.py          评分纯函数
+  advice.py           本地规则与可选 OpenAI 训练建议
+  reporting.py        文本摘要与 JSON 报告
+  template.py         专家动作模板
+  pose_extractor.py   MediaPipe 姿态提取
+  config.py           环境变量集中配置
+  types.py            PoseResult / Alignment 数据类型
+api/                  FastAPI 服务（main/routes/schemas/services/settings/errors）
+frontend/web/         React/Vite 中文工作台（api 客户端 + hooks + 组件 + vitest）
+frontend/             Gradio 调试界面
+scripts/              兼容旧调用方式的命令行转发壳
+tests/                Python 回归测试、DTW 对拍测试与 API 测试
+notebooks/            实验脚手架，不包含已发表的结果结论
+docs/                 配置说明、设计文档与项目文档
 ```
 
 ## 已知限制

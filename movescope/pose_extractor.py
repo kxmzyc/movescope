@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
 from movescope.features import JOINT_NAMES
+from movescope.types import PoseResult
 
+logger = logging.getLogger(__name__)
 
 MEDIAPIPE_TO_COCO = {
     "left_hip": 23,
@@ -38,7 +41,7 @@ class PoseExtractor:
     min_confidence: float = 0.3
     motionbert_checkpoint: Path = MOTIONBERT_CHECKPOINT
 
-    def extract(self, video_path: str) -> dict:
+    def extract(self, video_path: str) -> PoseResult:
         try:
             import cv2
             import mediapipe as mp
@@ -82,28 +85,28 @@ class PoseExtractor:
 
         capture.release()
 
-        coords_2d_arr = self._interpolate_low_confidence(np.asarray(coords_2d, dtype=float), np.asarray(confidence))
-        coords_3d_arr = self._interpolate_low_confidence(np.asarray(coords_3d_pseudo, dtype=float), np.asarray(confidence))
+        conf_frames = np.asarray(confidence)
+        coords_2d_arr = self._interpolate_low_confidence(np.asarray(coords_2d, dtype=float), conf_frames)
+        coords_3d_arr = self._interpolate_low_confidence(np.asarray(coords_3d_pseudo, dtype=float), conf_frames)
         conf_arr = np.asarray(confidence, dtype=float)
         coords_3d = None
         if self.motionbert_checkpoint.exists():
             try:
                 coords_3d = self.lift_to_3d(coords_2d_arr, fps)
             except Exception as exc:
-                print(f"警告：MotionBERT 三维提升失败，已回退到伪三维关键点：{exc}")
+                logger.warning("MotionBERT 三维提升失败，已回退到伪三维关键点：%s", exc)
         else:
-            print(f"警告：未在 {self.motionbert_checkpoint} 找到 MotionBERT 检查点，coords_3d=None")
+            logger.warning("未在 %s 找到 MotionBERT 检查点，coords_3d=None", self.motionbert_checkpoint)
 
-        return {
-            "fps": fps,
-            "n_frames": int(len(coords_2d_arr)),
-            "joint_names": JOINT_NAMES,
-            "coords_2d": coords_2d_arr,
-            "confidence": conf_arr,
-            "coords_3d": coords_3d,
-            "coords_3d_pseudo": coords_3d_arr,
-            "skipped_frames": skipped_frames,
-        }
+        return PoseResult(
+            fps=fps,
+            joint_names=JOINT_NAMES,
+            coords_2d=coords_2d_arr,
+            confidence=conf_arr,
+            coords_3d=coords_3d,
+            coords_3d_pseudo=coords_3d_arr,
+            skipped_frames=skipped_frames,
+        )
 
     def lift_to_3d(self, coords_2d: np.ndarray, fps: float) -> np.ndarray:
         coords = np.asarray(coords_2d, dtype=float)
@@ -121,7 +124,9 @@ class PoseExtractor:
             "已检测到 MotionBERT 检查点，但当前项目尚未配置本地 MotionBERT 推理适配器。"
         )
 
-    def _map_landmarks(self, landmarks, world_landmarks, width: int, height: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _map_landmarks(
+        self, landmarks, world_landmarks, width: int, height: int
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         coords_2d = np.zeros((len(JOINT_NAMES), 2), dtype=float)
         coords_3d = np.zeros((len(JOINT_NAMES), 3), dtype=float)
         confidence = np.zeros(len(JOINT_NAMES), dtype=float)
@@ -165,7 +170,7 @@ class PoseExtractor:
         for joint_idx in range(coords.shape[1]):
             good = confidence[:, joint_idx] >= self.min_confidence
             if not good.any():
-                print(f"警告：关节 {JOINT_NAMES[joint_idx]} 没有可靠帧")
+                logger.warning("关节 %s 没有可靠帧", JOINT_NAMES[joint_idx])
                 filled[:, joint_idx, :] = np.nan
                 continue
             good_indices = np.where(good)[0]

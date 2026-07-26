@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from movescope.template import ActionTemplate
+from movescope.types import PoseResult
 
 
 def test_template_build_from_features():
@@ -25,7 +26,14 @@ def test_template_build_from_expert_videos(tmp_path):
     class FakePoseExtractor:
         def extract(self, video_path):
             value = 1.0 if video_path.endswith("a.mp4") else 2.0
-            return {"coords_3d": None, "coords_3d_pseudo": np.full((5, 17, 3), value)}
+            return PoseResult(
+                fps=30.0,
+                joint_names=[f"joint_{idx}" for idx in range(17)],
+                coords_2d=np.zeros((5, 17, 2)),
+                confidence=np.ones((5, 17)),
+                coords_3d=None,
+                coords_3d_pseudo=np.full((5, 17, 3), value),
+            )
 
     class FakeFeatureExtractor:
         def extract(self, coords_3d, normalize=True):
