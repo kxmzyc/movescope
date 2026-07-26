@@ -13,6 +13,11 @@ def save_diagnosis(result: dict, output_path: str | Path) -> None:
 
 def generate_text_summary(result: dict, top_k: int = 3) -> str:
     lines = [f"总分：{result.get('total_score', 0):.1f}/100"]
+    reps = result.get("reps") or []
+    if len(reps) >= 2:
+        scores = " / ".join(f"{float(rep.get('score', 0.0)):.1f}" for rep in reps)
+        detail = int(result.get("rep_detail_index", 0)) + 1
+        lines.append(f"检测到 {len(reps)} 次往复，逐次评分：{scores}（总分为均值，详情取第 {detail} 次）")
     anomalies = []
     for phase in result.get("phases", []):
         for anomaly in phase.get("anomalies", []):

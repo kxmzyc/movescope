@@ -7,6 +7,6 @@ authors:
     given-names: Yuchen
 repository-code: "https://github.com/kxmzyc/movescope"
 url: "https://github.com/kxmzyc/movescope"
-version: 0.5.0
+version: 0.6.0
 date-released: 2026-07-27
 license: Apache-2.0

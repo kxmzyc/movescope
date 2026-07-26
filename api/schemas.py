@@ -83,6 +83,15 @@ class TimelineSeriesModel(BaseModel):
     anomaly: list[bool]
 
 
+class RepSummaryModel(BaseModel):
+    """一次深蹲往复的摘要（多次往复视频逐次评分时返回）。"""
+
+    index: int
+    time_range: list[float] = Field(min_length=2, max_length=2)
+    score: float
+    knee_min_deg: float
+
+
 class TimelineModel(BaseModel):
     fps: float
     frame_count: int
@@ -123,6 +132,10 @@ class DiagnosisResponse(BaseModel):
     phases: list[PhaseModel]
     per_feature_summary: list[FeatureSummaryModel]
     excluded_features: list[ExcludedFeatureModel] = Field(default_factory=list)
+    # 检测到 ≥2 次往复时返回：total_score 为逐次均值，
+    # phases/timeline 详情对应第 rep_detail_index 次（时间为原视频时刻）。
+    reps: list[RepSummaryModel] | None = None
+    rep_detail_index: int | None = None
     timeline: TimelineModel | None = None
     skeleton: SkeletonModel | None = None
     llm_advice: str | None = None

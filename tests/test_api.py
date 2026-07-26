@@ -3,6 +3,7 @@ import threading
 from pathlib import Path
 
 import numpy as np
+import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
@@ -338,3 +339,60 @@ def _save_template() -> None:
     template = ActionTemplate("squat")
     template.build_from_features([np.zeros((6, 12)), np.ones((6, 12))])
     template.save()
+
+
+def test_assess_multi_rep_video_returns_rep_summaries(tmp_path, monkeypatch):
+    """多次往复的视频逐次评分：总分为均值，详情时刻偏移回原视频坐标。"""
+    from movescope.features import JOINT_NAMES, FeatureExtractor
+
+    monkeypatch.chdir(tmp_path)
+    _save_template()
+
+    stand, depth = 170.0, 80.0
+    rest = np.full(20, stand)
+    pieces = [rest]
+    for _ in range(3):
+        t = np.linspace(0.0, np.pi, 30)
+        pieces.append(stand - depth * np.sin(t) ** 2)
+        pieces.append(rest)
+    knee = np.concatenate(pieces)
+    features = np.full((len(knee), 12), 100.0)
+    features[:, 0] = knee
+    features[:, 1] = knee
+
+    class FakePoseExtractor:
+        def extract(self, _video_path):
+            frames = len(knee)
+            return PoseResult(
+                fps=30.0,
+                joint_names=list(JOINT_NAMES),
+                coords_2d=np.full((frames, 17, 2), 0.5),
+                confidence=np.ones((frames, 17)),
+                coords_3d_pseudo=np.zeros((frames, 17, 3)),
+            )
+
+    class FakeFeatureExtractor:
+        features = FeatureExtractor().features
+
+        def extract(self, _coords, normalize=True):
+            return features
+
+    monkeypatch.setattr("api.services.PoseExtractor", FakePoseExtractor)
+    monkeypatch.setattr("api.services.FeatureExtractor", FakeFeatureExtractor)
+
+    response = TestClient(app).post(
+        "/assess",
+        data={"action": "squat"},
+        files={"video": ("sample.mp4", b"video", "video/mp4")},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["reps"]) == 3
+    detail = payload["rep_detail_index"]
+    assert 0 <= detail < 3
+    scores = [rep["score"] for rep in payload["reps"]]
+    assert payload["total_score"] == pytest.approx(sum(scores) / 3, abs=0.01)
+    detail_start = payload["reps"][detail]["time_range"][0]
+    assert payload["timeline"]["time_sec"][0] == pytest.approx(detail_start, abs=0.05)
+    assert payload["phases"][0]["time_range"][0] == pytest.approx(detail_start, abs=0.05)

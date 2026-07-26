@@ -220,6 +220,25 @@ describe('ResultsPanel', () => {
     expect(onSeek).toHaveBeenCalledWith(0.7)
   })
 
+  it('多次往复时渲染逐次评分并可点击跳转', () => {
+    const onSeek = vi.fn()
+    const diagnosis: Diagnosis = {
+      ...DIAGNOSIS,
+      reps: [
+        { index: 0, time_range: [0.3, 2.1], score: 69.2, knee_min_deg: 72.0 },
+        { index: 1, time_range: [2.9, 5.0], score: 72.6, knee_min_deg: 70.5 },
+      ],
+      rep_detail_index: 1,
+    }
+    render(<ResultsPanel diagnosis={diagnosis} onDownload={() => {}} onSeek={onSeek} />)
+
+    expect(screen.getByText(/检测到 2 次深蹲/)).toBeInTheDocument()
+    screen.getByRole('button', { name: /第 1 次/ }).click()
+
+    expect(onSeek).toHaveBeenCalledWith(0.3)
+    expect(screen.getByRole('button', { name: /第 2 次/ })).toHaveClass('active')
+  })
+
   it('导出按钮触发下载回调', () => {
     const onDownload = vi.fn()
     render(<ResultsPanel diagnosis={DIAGNOSIS} onDownload={onDownload} />)

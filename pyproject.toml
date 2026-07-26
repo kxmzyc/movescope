@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "movescope"
-version = "0.5.0"
+version = "0.6.0"
 description = "可解释的单目深蹲动作质量评估原型"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"

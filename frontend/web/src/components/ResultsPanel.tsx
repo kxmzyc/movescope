@@ -71,6 +71,29 @@ export function ResultsPanel({ diagnosis, onDownload, onSeek }: Props) {
         </p>
       )}
 
+      {diagnosis?.reps && diagnosis.reps.length > 0 && (
+        <div className="repRow" role="group" aria-label="逐次评分">
+          <p className="repRowTitle">检测到 {diagnosis.reps.length} 次深蹲，总分为逐次均值，点击跳转：</p>
+          <div className="repChips">
+            {diagnosis.reps.map((rep) => {
+              const isDetail = rep.index === diagnosis.rep_detail_index
+              return (
+                <button
+                  key={rep.index}
+                  type="button"
+                  className={isDetail ? 'repChip active' : 'repChip'}
+                  title={`第 ${rep.index + 1} 次：${rep.time_range[0].toFixed(1)}-${rep.time_range[1].toFixed(1)} 秒，最低膝角 ${rep.knee_min_deg.toFixed(0)}°${isDetail ? '，详情面板展示此次' : ''}`}
+                  onClick={() => onSeek?.(rep.time_range[0])}
+                >
+                  <span>第 {rep.index + 1} 次</span>
+                  <strong>{rep.score.toFixed(0)}</strong>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {excluded.length > 0 && (
         <div className="excludedNotice" role="note">
           <EyeOff />

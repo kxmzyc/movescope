@@ -12,6 +12,7 @@ from movescope.alignment import WeightedSegmentedDTWAligner
 from movescope.assessment import AssessmentEngine
 from movescope.cli._console import configure_utf8_stdio
 from movescope.reporting import generate_text_summary, save_diagnosis
+from movescope.reps import assess_features_by_rep
 from movescope.template import ActionTemplate
 
 
@@ -37,7 +38,7 @@ def main() -> None:
     template = ActionTemplate.load(args.action, args.template)
     features = load_features(Path(args.features))
     engine = AssessmentEngine(template, WeightedSegmentedDTWAligner())
-    result = engine.assess_features(features)
+    result = assess_features_by_rep(engine, features)
 
     if args.output:
         save_diagnosis(result, args.output)

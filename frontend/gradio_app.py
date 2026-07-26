@@ -16,6 +16,7 @@ from movescope.constants import SKELETON_EDGES
 from movescope.features import CORE_FEATURE_INDICES, JOINT_NAMES, FeatureExtractor
 from movescope.pose_extractor import PoseExtractor
 from movescope.reporting import generate_text_summary
+from movescope.reps import assess_pose_by_rep
 from movescope.template import ActionTemplate
 from movescope.types import PoseResult
 
@@ -43,7 +44,7 @@ def assess_video(video_path: str | None, action: str = "squat") -> tuple[str | N
             feature_extractor=FeatureExtractor(),
             required_features=CORE_FEATURE_INDICES,
         )
-        result = engine.assess_pose(pose)
+        result = assess_pose_by_rep(engine, pose)
         advice, _source = generate_advice(
             result,
             provider=settings.advice_provider,

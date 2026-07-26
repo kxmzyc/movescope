@@ -18,6 +18,7 @@ from movescope.constants import SKELETON_EDGES
 from movescope.errors import InvalidInputError, PoseQualityError, TemplateNotFoundError
 from movescope.features import CORE_FEATURE_INDICES, FeatureExtractor
 from movescope.pose_extractor import PoseExtractor
+from movescope.reps import assess_pose_by_rep
 from movescope.template import ActionTemplate
 from movescope.types import PoseResult
 
@@ -67,7 +68,7 @@ class AssessmentService:
             required_features=CORE_FEATURE_INDICES,
         )
         try:
-            result = engine.assess_pose(pose)
+            result = assess_pose_by_rep(engine, pose)
         except InvalidInputError:
             raise
         except ValueError as exc:

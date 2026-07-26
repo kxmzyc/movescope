@@ -57,6 +57,13 @@ export type DiagnosisPhase = {
   anomalies: Anomaly[]
 }
 
+export type RepSummary = {
+  index: number
+  time_range: [number, number]
+  score: number
+  knee_min_deg: number
+}
+
 export type TimelineSeries = {
   feature_index: number
   joint: string
@@ -96,6 +103,10 @@ export type Diagnosis = {
   phases: DiagnosisPhase[]
   per_feature_summary: FeatureSummary[]
   excluded_features?: ExcludedFeature[]
+  // 检测到 ≥2 次往复时返回：total_score 为逐次均值，
+  // phases/timeline 详情对应第 rep_detail_index 次。
+  reps?: RepSummary[]
+  rep_detail_index?: number
   timeline?: Timeline
   skeleton?: Skeleton
   llm_advice?: string
